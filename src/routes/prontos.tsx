@@ -28,8 +28,7 @@ function ProntosPage() {
       <PageHeader title="Prontos para você" subtitle="Preparados hoje pela manhã" />
       <main className="mx-auto max-w-3xl space-y-5 px-5 pt-6">
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Opções equilibradas, prontas para pedir. Os valores nutricionais são estimativas com base
-          nas porções servidas.
+          Opções equilibradas, prontas para pedir. Valores nutricionais aproximados.
         </p>
         <div className="grid gap-5 sm:grid-cols-2">
           {products.map((product) => (

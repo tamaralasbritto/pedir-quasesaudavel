@@ -1,16 +1,17 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronLeft, ChevronRight, Info, ShoppingBag } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
-import { NutritionGrid } from "@/components/NutritionGrid";
+import { LiveSummary } from "@/components/LiveSummary";
 import { Button } from "@/components/ui/button";
 import { buildableProducts, categoriesForKind } from "@/data/ingredients";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import { sumNutrition } from "@/lib/nutrition";
+import { buildPriceLines, previewCharge } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import type { CartItemSelection, Ingredient, ProductKind } from "@/types";
+import type { CartItemSelection, ProductKind } from "@/types";
 
 export const Route = createFileRoute("/monte")({
   head: () => ({
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/monte")({
       {
         name: "description",
         content:
-          "Escolha a base, a proteína, os complementos e os extras. O preço e as informações nutricionais estimadas atualizam na hora.",
+          "Escolha a base, a proteína, os complementos e os extras. O preço e as informações nutricionais aproximadas atualizam na hora.",
       },
       { property: "og:title", content: "Monte o seu — QUASE! saudável" },
       {
@@ -41,42 +42,27 @@ function MontePage() {
   const productMeta = buildableProducts.find((p) => p.kind === kind);
   const current = categories[step];
 
-  const chosen: CartItemSelection[] = useMemo(() => {
-    const list: CartItemSelection[] = [];
-    categories.forEach((cat) => {
-      (selected[cat.id] ?? []).forEach((id) => {
-        const ing = cat.ingredients.find((i) => i.id === id);
-        if (ing)
-          list.push({
-            categoryId: cat.id,
-            categoryName: cat.name,
-            ingredientId: ing.id,
-            name: ing.name,
-            portion: ing.portion,
-            price: ing.price,
-          });
-      });
-    });
-    return list;
-  }, [categories, selected]);
+  const lines = useMemo(() => buildPriceLines(categories, selected), [categories, selected]);
 
-  const chosenIngredients: Ingredient[] = useMemo(() => {
-    const list: Ingredient[] = [];
-    categories.forEach((cat) => {
-      (selected[cat.id] ?? []).forEach((id) => {
-        const ing = cat.ingredients.find((i) => i.id === id);
-        if (ing) list.push(ing);
-      });
-    });
-    return list;
-  }, [categories, selected]);
+  const chosen: CartItemSelection[] = useMemo(
+    () =>
+      lines.map((l) => ({
+        categoryId: l.categoryId as CartItemSelection["categoryId"],
+        categoryName: l.categoryName,
+        ingredientId: l.ingredient.id,
+        name: l.ingredient.name,
+        portion: l.ingredient.portion,
+        price: l.charge,
+      })),
+    [lines],
+  );
 
   const nutrition = useMemo(
-    () => sumNutrition(chosenIngredients.map((i) => i.nutrition)),
-    [chosenIngredients],
+    () => sumNutrition(lines.map((l) => l.ingredient.nutrition)),
+    [lines],
   );
-  const total =
-    (productMeta?.basePrice ?? 0) + chosenIngredients.reduce((sum, i) => sum + i.price, 0);
+  const extrasTotal = lines.reduce((sum, l) => sum + l.charge, 0);
+  const total = (productMeta?.basePrice ?? 0) + extrasTotal;
 
   const toggle = (categoryId: string, mode: "single" | "multiple", ingredientId: string) => {
     setSelected((prev) => {
@@ -121,8 +107,8 @@ function MontePage() {
     return (
       <div className="min-h-screen bg-background pb-32">
         <PageHeader title="Monte o seu" subtitle="Comece escolhendo o que você quer montar" />
-        <main className="mx-auto max-w-3xl space-y-4 px-5 pt-6">
-          <p className="text-sm leading-relaxed text-muted-foreground">
+        <main className="mx-auto max-w-3xl space-y-3 px-5 pt-8">
+          <p className="pb-2 text-sm leading-relaxed text-muted-foreground">
             Escolha por onde começar. Depois é só seguir os passos.
           </p>
           {buildableProducts.map((p) => (
@@ -134,16 +120,19 @@ function MontePage() {
                 setStep(0);
                 setSelected({});
               }}
-              className="flex w-full items-center justify-between gap-4 rounded-4xl border border-border bg-card p-6 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lift"
+              className="flex w-full items-center justify-between gap-4 rounded-4xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:shadow-soft"
             >
               <span>
-                <span className="block text-xl font-semibold text-olive-deep">{p.name}</span>
+                <span className="font-display block text-xl font-semibold">{p.name}</span>
                 <span className="mt-1 block text-sm text-muted-foreground">{p.description}</span>
-                <span className="mt-2 block text-sm font-medium text-olive">
+                <span className="mt-3 block text-xs text-muted-foreground">
+                  Inclui {p.includes.join(" · ")}
+                </span>
+                <span className="mt-2 block text-sm font-medium">
                   a partir de {formatBRL(p.basePrice)}
                 </span>
               </span>
-              <ChevronRight className="h-5 w-5 shrink-0 text-olive" />
+              <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.6} />
             </button>
           ))}
         </main>
@@ -155,32 +144,34 @@ function MontePage() {
     <div className="min-h-screen bg-background pb-56">
       <PageHeader title={productMeta?.name ?? "Monte o seu"} subtitle="Do seu jeito" />
 
-      <main className="mx-auto max-w-3xl px-5 pt-5">
+      <main className="mx-auto max-w-3xl px-5 pt-6">
         <div className="flex items-center gap-1.5">
           {categories.map((c, i) => (
             <div
               key={c.id}
               className={cn(
-                "h-1.5 flex-1 rounded-full transition-colors",
-                i <= step ? "bg-olive" : "bg-muted",
+                "h-0.5 flex-1 rounded-full transition-colors",
+                i <= step ? "bg-foreground" : "bg-border",
               )}
             />
           ))}
         </div>
-        <p className="mt-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <p className="mt-3 text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
           Passo {step + 1} de {categories.length}
         </p>
 
         {current && (
-          <section className="mt-3 space-y-4">
+          <section className="mt-4 space-y-5">
             <div>
-              <h2 className="text-2xl font-semibold text-olive-deep">{current.name}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{current.helper}</p>
+              <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">{current.helper}</p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-2.5 sm:grid-cols-2">
               {current.ingredients.map((ing) => {
-                const isSelected = (selected[current.id] ?? []).includes(ing.id);
+                const selectedIds = selected[current.id] ?? [];
+                const isSelected = selectedIds.includes(ing.id);
+                const charge = previewCharge(current, ing, selectedIds);
                 return (
                   <button
                     key={ing.id}
@@ -190,39 +181,45 @@ function MontePage() {
                     className={cn(
                       "rounded-3xl border p-4 text-left transition-all",
                       isSelected
-                        ? "border-olive bg-accent shadow-soft"
-                        : "border-border bg-card hover:border-sage",
-                      !ing.available && "cursor-not-allowed opacity-50",
+                        ? "border-foreground bg-accent"
+                        : "border-border bg-card hover:border-foreground/25",
+                      !ing.available && "cursor-not-allowed opacity-45",
                     )}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-xs font-semibold text-olive">
-                        {ing.name.slice(0, 2).toUpperCase()}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">{ing.name}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{ing.portion}</p>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-semibold text-olive-deep">{ing.name}</p>
-                          {isSelected && (
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-olive text-primary-foreground">
-                              <Check className="h-3.5 w-3.5" />
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {ing.portion} ·{" "}
-                          {ing.price === 0 ? "sem custo extra" : `+ ${formatBRL(ing.price)}`}
-                        </p>
-                        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                          {Math.round(ing.nutrition.calories)} kcal · {ing.nutrition.protein} g prot
-                          · {ing.nutrition.carbs} g carb · {ing.nutrition.fat} g gord
-                        </p>
-                        {!ing.available && (
-                          <p className="mt-1 text-[11px] font-medium text-destructive">
-                            Indisponível hoje
-                          </p>
+                      <span className="flex shrink-0 items-center gap-2">
+                        {ing.available && (
+                          <span
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums",
+                              charge === 0
+                                ? "bg-sage/25 text-foreground"
+                                : "bg-lavender/40 text-foreground",
+                            )}
+                          >
+                            {charge === 0 ? "Incluso" : `+ ${formatBRL(charge)}`}
+                          </span>
                         )}
-                      </div>
+                        {isSelected && (
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background">
+                            <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                          </span>
+                        )}
+                      </span>
                     </div>
+                    <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                      {Math.round(ing.nutrition.calories)} kcal · {ing.nutrition.protein} g proteína
+                      · {ing.nutrition.carbs} g carb. · {ing.nutrition.fat} g gord.
+                    </p>
+                    {!ing.available && (
+                      <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+                        Indisponível hoje
+                      </p>
+                    )}
                   </button>
                 );
               })}
@@ -230,31 +227,29 @@ function MontePage() {
           </section>
         )}
 
-        <section className="mt-6 rounded-4xl border border-border bg-cream p-5 shadow-soft">
-          <h3 className="font-display text-lg font-semibold text-olive-deep">Resumo do seu pedido</h3>
+        <section className="mt-8 space-y-4 border-t border-border pt-6">
+          <h3 className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+            Seu pedido
+          </h3>
           {chosen.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Suas escolhas aparecem aqui conforme você monta.
             </p>
           ) : (
-            <ul className="mt-3 space-y-1.5 text-sm">
+            <ul className="space-y-1.5 text-sm">
               {chosen.map((s) => (
                 <li key={s.ingredientId} className="flex justify-between gap-3">
                   <span className="text-muted-foreground">
-                    {s.categoryName}: <span className="text-foreground">{s.name}</span> ({s.portion})
+                    {s.categoryName}: <span className="text-foreground">{s.name}</span>
                   </span>
-                  <span className="shrink-0 tabular-nums text-olive">
-                    {s.price === 0 ? "—" : `+ ${formatBRL(s.price)}`}
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                    {s.price === 0 ? "Incluso" : `+ ${formatBRL(s.price)}`}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-          <NutritionGrid nutrition={nutrition} className="mt-4" />
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Valores nutricionais são estimativas com base nas porções selecionadas.
-          </p>
+          <LiveSummary total={total} nutrition={nutrition} />
         </section>
       </main>
 
@@ -262,9 +257,9 @@ function MontePage() {
         <div className="mx-auto max-w-3xl space-y-3 px-5 pt-3 pb-5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">
-              {Math.round(nutrition.calories)} kcal estimadas
+              {Math.round(nutrition.calories)} kcal aprox.
             </span>
-            <span className="text-xl font-semibold tabular-nums text-olive-deep">
+            <span className="font-display text-xl font-semibold tabular-nums">
               {formatBRL(total)}
             </span>
           </div>
