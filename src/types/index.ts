@@ -34,6 +34,8 @@ export interface IngredientCategory {
   /** "single" = escolha uma opção, "multiple" = pode escolher várias */
   selection: "single" | "multiple";
   required: boolean;
+  /** Quantas escolhas desta categoria já estão inclusas no preço base. */
+  included: number;
   appliesTo: ProductKind[];
   ingredients: Ingredient[];
 }
@@ -42,7 +44,10 @@ export interface Ingredient {
   id: string;
   name: string;
   portion: string;
+  /** Valor adicional cobrado quando o item não está incluso (ou é premium). */
   price: number;
+  /** Proteínas premium são cobradas mesmo dentro da cota inclusa. */
+  premium?: boolean;
   nutrition: Nutrition;
   image?: string;
   available: boolean;
