@@ -27,7 +27,7 @@ export function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <article className="overflow-hidden rounded-4xl border border-border bg-card shadow-soft transition-shadow hover:shadow-lift">
+    <article className="overflow-hidden rounded-4xl border border-border bg-card transition-shadow hover:shadow-soft">
       <div className="aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={product.image}
@@ -35,26 +35,23 @@ export function ProductCard({ product }: { product: Product }) {
           loading="lazy"
           width={1024}
           height={1024}
-          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]"
         />
       </div>
-      <div className="space-y-4 p-5">
-        <div className="space-y-1.5">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="text-xl font-semibold text-olive-deep">{product.name}</h3>
-            <span className="shrink-0 rounded-full bg-accent px-3 py-1 text-sm font-semibold text-accent-foreground tabular-nums">
+      <div className="space-y-5 p-6">
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="font-display text-xl font-semibold">{product.name}</h3>
+            <span className="shrink-0 text-base font-semibold tabular-nums">
               {formatBRL(product.price)}
             </span>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">{product.description}</p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] tracking-wide text-muted-foreground uppercase">
           {product.highlights.map((h) => (
-            <span
-              key={h}
-              className="rounded-full border border-sage/60 bg-sage/15 px-3 py-1 text-xs font-medium text-olive-deep"
-            >
+            <span key={h} className="after:ml-3 after:text-border after:content-['·'] last:after:content-['']">
               {h}
             </span>
           ))}
@@ -62,7 +59,7 @@ export function ProductCard({ product }: { product: Product }) {
 
         <NutritionGrid nutrition={product.nutrition} />
 
-        <div className="flex items-center justify-between gap-3 pt-1">
+        <div className="flex items-center justify-between gap-3">
           <QuantityStepper value={quantity} onChange={setQuantity} />
           <Button size="lg" className="flex-1 rounded-full" onClick={handleAdd}>
             Adicionar ao carrinho
