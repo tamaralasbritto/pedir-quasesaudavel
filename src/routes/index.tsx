@@ -58,7 +58,7 @@ function Home() {
             <br />
             Preparada hoje.
             <br />
-            <span className="italic font-normal text-olive">no seu condomínio.</span>
+            <span className="italic font-normal text-olive">Entregue no seu condomínio.</span>
           </h1>
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
             Escolha uma opção e faça seu pedido em poucos minutos.
