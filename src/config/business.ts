@@ -3,7 +3,7 @@
  * Altere aqui o número de WhatsApp que recebe os pedidos.
  * Formato internacional, apenas dígitos: 55 + DDD + número.
  */
-export const WHATSAPP_NUMBER = "5511999999999";
+export const WHATSAPP_NUMBER = "5581985546114";
 
 export const BRAND = {
   name: "QUASE! saudável",
