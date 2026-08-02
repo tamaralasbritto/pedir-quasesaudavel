@@ -192,16 +192,18 @@ function MontePage() {
                         <p className="mt-0.5 text-xs text-muted-foreground">{ing.portion}</p>
                       </div>
                       <span className="flex shrink-0 items-center gap-2">
-                        <span
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums",
-                            charge === 0
-                              ? "bg-sage/25 text-foreground"
-                              : "bg-lavender/40 text-foreground",
-                          )}
-                        >
-                          {charge === 0 ? "Incluso" : `+ ${formatBRL(charge)}`}
-                        </span>
+                        {ing.available && (
+                          <span
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums",
+                              charge === 0
+                                ? "bg-sage/25 text-foreground"
+                                : "bg-lavender/40 text-foreground",
+                            )}
+                          >
+                            {charge === 0 ? "Incluso" : `+ ${formatBRL(charge)}`}
+                          </span>
+                        )}
                         {isSelected && (
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background">
                             <Check className="h-3.5 w-3.5" strokeWidth={2} />
