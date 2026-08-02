@@ -10,11 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as MonteRouteImport } from './routes/monte'
 import { Route as ProntosRouteImport } from './routes/prontos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonteRoute = MonteRouteImport.update({
+  id: '/monte',
+  path: '/monte',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProntosRoute = ProntosRouteImport.update({
@@ -25,27 +37,35 @@ const ProntosRoute = ProntosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/checkout': typeof CheckoutRoute
+  '/monte': typeof MonteRoute
   '/prontos': typeof ProntosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/checkout': typeof CheckoutRoute
+  '/monte': typeof MonteRoute
   '/prontos': typeof ProntosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/checkout': typeof CheckoutRoute
+  '/monte': typeof MonteRoute
   '/prontos': typeof ProntosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/prontos'
+  fullPaths: '/' | '/checkout' | '/monte' | '/prontos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/prontos'
-  id: '__root__' | '/' | '/prontos'
+  to: '/' | '/checkout' | '/monte' | '/prontos'
+  id: '__root__' | '/' | '/checkout' | '/monte' | '/prontos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CheckoutRoute: typeof CheckoutRoute
+  MonteRoute: typeof MonteRoute
   ProntosRoute: typeof ProntosRoute
 }
 
@@ -56,6 +76,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monte': {
+      id: '/monte'
+      path: '/monte'
+      fullPath: '/monte'
+      preLoaderRoute: typeof MonteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prontos': {
@@ -70,6 +104,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CheckoutRoute: CheckoutRoute,
+  MonteRoute: MonteRoute,
   ProntosRoute: ProntosRoute,
 }
 export const routeTree = rootRouteImport

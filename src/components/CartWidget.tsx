@@ -18,7 +18,7 @@ export function CartWidget() {
   const { items, count, subtotal, updateQuantity, removeItem } = useCart();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  if (pathname === "/checkout") return null;
+  if (pathname === "/checkout" || pathname === "/monte") return null;
 
   return (
     <>
