@@ -1,21 +1,30 @@
 import { Link } from "@tanstack/react-router";
+import logoFull from "@/assets/logo-quase-saudavel.png.asset.json";
+import logoMark from "@/assets/logo-quase-mark.png.asset.json";
 import { cn } from "@/lib/utils";
 
-export function BrandLogo({ className, asLink = true }: { className?: string; asLink?: boolean }) {
+export function BrandLogo({
+  className,
+  asLink = true,
+  variant = "full",
+}: {
+  className?: string;
+  asLink?: boolean;
+  variant?: "full" | "mark";
+}) {
+  const asset = variant === "mark" ? logoMark : logoFull;
   const content = (
-    <span className={cn("inline-flex items-baseline gap-1.5 leading-none", className)}>
-      <span className="font-display text-xl font-semibold tracking-tight text-olive-deep">
-        QUASE
-      </span>
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-sage text-[13px] font-bold text-olive-deep">
-        !
-      </span>
-      <span className="font-display text-xl font-normal italic text-olive">saudável</span>
-    </span>
+    <img
+      src={asset.url}
+      alt="QUASE! saudável"
+      width={variant === "mark" ? 365 : 926}
+      height={variant === "mark" ? 386 : 357}
+      className={cn(variant === "mark" ? "h-8 w-auto" : "h-9 w-auto", className)}
+    />
   );
   if (!asLink) return content;
   return (
-    <Link to="/" aria-label="QUASE! saudável — página inicial">
+    <Link to="/" aria-label="QUASE! saudável — página inicial" className="inline-flex">
       {content}
     </Link>
   );
