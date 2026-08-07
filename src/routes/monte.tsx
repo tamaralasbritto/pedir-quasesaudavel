@@ -15,14 +15,14 @@ import type { CartItemSelection, IngredientCategory, ProductKind } from "@/types
 export const Route = createFileRoute("/monte")({
   head: () => ({
     meta: [
-      { title: "Monte o seu — QUASE! saudável" },
+      { title: "Faça seu pedido — QUASE! saudável" },
       {
         name: "description",
-        content: "Escolha o tamanho, os ingredientes e monte seu pedido do seu jeito.",
+        content: "Escolha o tamanho, distribua as porções e deixe seu pedido do seu jeito.",
       },
     ],
   }),
-  component: MontePage,
+  component: OrderBuilderPage,
 });
 
 const SALAD_LIMITS: Record<string, number> = {
@@ -31,7 +31,7 @@ const SALAD_LIMITS: Record<string, number> = {
   "salada-750": 8,
 };
 
-function MontePage() {
+function OrderBuilderPage() {
   const [kind, setKind] = useState<ProductKind | null>(null);
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
@@ -52,6 +52,7 @@ function MontePage() {
 
   const current = categories[step];
   const ingredientLimit = selectedSize ? SALAD_LIMITS[selectedSize] : 0;
+  const currentSelectionCount = current ? (selected[current.id] ?? []).length : 0;
 
   const chosen: CartItemSelection[] = useMemo(() => {
     const selections: CartItemSelection[] = [];
@@ -64,15 +65,14 @@ function MontePage() {
       Object.entries(counts).forEach(([ingredientId, quantity]) => {
         const ingredient = category.ingredients.find((item) => item.id === ingredientId);
         if (!ingredient) return;
-        const chargeable = category.id === "tamanho" || category.id === "proteina" || category.id === "extras";
-        const price = chargeable ? ingredient.price * quantity : 0;
+        const chargeable = ["tamanho", "proteina", "extras"].includes(category.id);
         selections.push({
           categoryId: category.id,
           categoryName: category.name,
           ingredientId: ingredient.id,
           name: quantity > 1 ? `${quantity}x ${ingredient.name}` : ingredient.name,
           portion: quantity > 1 ? `${quantity} porções de ${ingredient.portion}` : ingredient.portion,
-          price,
+          price: chargeable ? ingredient.price * quantity : 0,
         });
       });
     });
@@ -88,28 +88,23 @@ function MontePage() {
     return sumNutrition(values as { calories: number; protein: number; carbs: number; fat: number }[]);
   }, [categories, selected]);
 
-  const sizePrice =
+  const findSelectedPrice = (categoryId: string, ingredientId?: string) =>
     categories
-      .find((category) => category.id === "tamanho")
-      ?.ingredients.find((ingredient) => ingredient.id === selectedSize)?.price ?? 0;
-  const proteinPrice =
-    categories
-      .find((category) => category.id === "proteina")
-      ?.ingredients.find((ingredient) => ingredient.id === selected.proteina?.[0])?.price ?? 0;
-  const extrasPrice = (selected.extras ?? []).reduce((sum, ingredientId) => {
-    const ingredient = categories
-      .find((category) => category.id === "extras")
-      ?.ingredients.find((item) => item.id === ingredientId);
-    return sum + (ingredient?.price ?? 0);
-  }, 0);
+      .find((category) => category.id === categoryId)
+      ?.ingredients.find((ingredient) => ingredient.id === ingredientId)?.price ?? 0;
+
+  const sizePrice = findSelectedPrice("tamanho", selectedSize);
+  const proteinPrice = findSelectedPrice("proteina", selected.proteina?.[0]);
+  const extrasPrice = (selected.extras ?? []).reduce(
+    (sum, ingredientId) => sum + findSelectedPrice("extras", ingredientId),
+    0,
+  );
   const total = sizePrice + proteinPrice + extrasPrice;
 
-  const currentSelectionCount = current ? (selected[current.id] ?? []).length : 0;
   const currentStepValid = useMemo(() => {
     if (!current) return false;
     if (current.id === "complementos") return currentSelectionCount === ingredientLimit;
-    if (current.required) return currentSelectionCount > 0;
-    return true;
+    return current.required ? currentSelectionCount > 0 : true;
   }, [current, currentSelectionCount, ingredientLimit]);
 
   const requirementsOk = categories.every((category) => {
@@ -146,7 +141,6 @@ function MontePage() {
   const changePortion = (ingredientId: string, delta: 1 | -1) => {
     setSelected((previous) => {
       const currentIds = previous.complementos ?? [];
-
       if (delta === 1) {
         if (currentIds.length >= ingredientLimit) {
           toast.info(`Você já completou as ${ingredientLimit} porções.`);
@@ -154,7 +148,6 @@ function MontePage() {
         }
         return { ...previous, complementos: [...currentIds, ingredientId] };
       }
-
       const lastIndex = currentIds.lastIndexOf(ingredientId);
       if (lastIndex < 0) return previous;
       return {
@@ -189,19 +182,19 @@ function MontePage() {
   if (justAdded) {
     return (
       <div className="min-h-screen bg-background pb-12">
-        <PageHeader title="Adicionado ao carrinho" subtitle="Seu pedido foi salvo" />
+        <PageHeader title="Prontinho!" subtitle="Seu pedido foi adicionado ao carrinho" />
         <main className="mx-auto max-w-3xl px-5 pt-10">
           <section className="rounded-4xl border border-border bg-card p-7 text-center shadow-soft">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-sage/30">
               <Check className="h-7 w-7" />
             </span>
-            <h1 className="font-display mt-5 text-3xl font-semibold">Tudo certo!</h1>
+            <h1 className="font-display mt-5 text-3xl font-semibold">Tudo certo! 💚</h1>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-              O item já está no seu carrinho. Você pode montar outro produto ou conferir o pedido antes de finalizar.
+              Você pode escolher outro produto ou conferir o carrinho antes de finalizar.
             </p>
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               <Button variant="outline" size="lg" className="rounded-full" onClick={resetBuilder}>
-                Continuar comprando
+                Continuar escolhendo
               </Button>
               <Button asChild size="lg" className="rounded-full">
                 <Link to="/checkout">
@@ -219,7 +212,7 @@ function MontePage() {
   if (!kind) {
     return (
       <div className="min-h-screen bg-background pb-32">
-        <PageHeader title="Monte o seu" subtitle="Escolha o que você quer montar" />
+        <PageHeader title="O que você vai pedir hoje?" subtitle="Escolha uma opção para começar" />
         <main className="mx-auto max-w-3xl space-y-3 px-5 pt-8">
           {buildableProducts.map((product) => (
             <button
@@ -271,7 +264,7 @@ function MontePage() {
 
   return (
     <div className="min-h-screen bg-background pb-56">
-      <PageHeader title={productMeta?.name ?? "Monte o seu"} subtitle="Do seu jeito" />
+      <PageHeader title={productMeta?.name ?? "Seu pedido"} subtitle="Feito do seu jeito" />
       <main className="mx-auto max-w-3xl px-5 pt-6">
         <div className="flex items-center gap-1.5">
           {categories.map((category, index) => (
@@ -294,7 +287,7 @@ function MontePage() {
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {current.id === "complementos"
-                  ? `Distribua ${ingredientLimit} porções como preferir. Você pode repetir ingredientes. ${currentSelectionCount} de ${ingredientLimit} porções escolhidas.`
+                  ? `Escolha ${ingredientLimit} porções. Você pode repetir o que mais gosta. ${currentSelectionCount} de ${ingredientLimit} escolhidas.`
                   : current.helper}
               </p>
             </div>
@@ -303,8 +296,7 @@ function MontePage() {
               {current.ingredients.map((ingredient) => {
                 const quantity = (selected[current.id] ?? []).filter((id) => id === ingredient.id).length;
                 const isSelected = quantity > 0;
-                const shownPrice =
-                  current.id === "tamanho" || current.id === "proteina" || current.id === "extras";
+                const shownPrice = ["tamanho", "proteina", "extras"].includes(current.id);
 
                 if (current.id === "complementos") {
                   return (
@@ -317,13 +309,7 @@ function MontePage() {
                       )}
                     >
                       <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="font-medium">{ingredient.name}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion} por porção</p>
-                          {!ingredient.available && (
-                            <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>
-                          )}
-                        </div>
+                        <IngredientInfo ingredient={ingredient} />
                         <div className="flex shrink-0 items-center gap-2">
                           <button
                             type="button"
@@ -369,10 +355,7 @@ function MontePage() {
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">{ingredient.name}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion}</p>
-                      </div>
+                      <IngredientInfo ingredient={ingredient} />
                       <span className="flex items-center gap-2">
                         {ingredient.available && shownPrice && (
                           <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">
@@ -388,9 +371,6 @@ function MontePage() {
                         )}
                       </span>
                     </div>
-                    {!ingredient.available && (
-                      <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>
-                    )}
                   </button>
                 );
               })}
@@ -401,7 +381,7 @@ function MontePage() {
         <section className="mt-8 space-y-4 border-t border-border pt-6">
           <h3 className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Seu pedido</h3>
           {chosen.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Suas escolhas aparecem aqui conforme você monta.</p>
+            <p className="text-sm text-muted-foreground">Suas escolhas aparecem aqui.</p>
           ) : (
             <ul className="space-y-1.5 text-sm">
               {chosen.map((selection) => (
@@ -464,6 +444,25 @@ function MontePage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function IngredientInfo({ ingredient }: { ingredient: IngredientCategory["ingredients"][number] }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium">{ingredient.name}</p>
+        {ingredient.badge && (
+          <span className="rounded-full bg-lavender/40 px-2 py-0.5 text-[10px] font-medium">
+            {ingredient.badge}
+          </span>
+        )}
+      </div>
+      <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion}</p>
+      {!ingredient.available && (
+        <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>
+      )}
     </div>
   );
 }
