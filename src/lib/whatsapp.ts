@@ -8,13 +8,17 @@ const categoryLabels: Record<string, string> = {
   molhos: "Molho",
   extras: "Extras",
   frutas: "Frutas",
+  "frutas-salada": "Frutas",
   caldas: "Caldas",
   acompanhamentos: "Acompanhamentos",
+  "adicionais-frutas": "Adicionais",
 };
+
+const sizeCategories = ["tamanho", "tamanho-acai", "tamanho-frutas"];
 
 function compactSelections(selections: CartItemSelection[]): string[] {
   const grouped = selections.reduce<Record<string, string[]>>((acc, selection) => {
-    if (selection.categoryId === "tamanho") return acc;
+    if (sizeCategories.includes(selection.categoryId)) return acc;
 
     const label = categoryLabels[selection.categoryId] ?? selection.categoryName;
     acc[label] = [...(acc[label] ?? []), selection.name];
@@ -25,7 +29,11 @@ function compactSelections(selections: CartItemSelection[]): string[] {
 }
 
 export function buildWhatsAppMessage(order: Order): string {
-  const lines: string[] = ["*PEDIDO QUASE!*", `*Cliente:* ${order.customer.name} — *Apto:* ${order.customer.apartment}`, ""];
+  const lines: string[] = [
+    "*PEDIDO QUASE!*",
+    `*Cliente:* ${order.customer.name} — *Apto:* ${order.customer.apartment}`,
+    "",
+  ];
 
   order.items.forEach((item, index) => {
     lines.push(`*${item.quantity}x ${item.name} — ${formatBRL(item.unitPrice * item.quantity)}*`);
