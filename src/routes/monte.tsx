@@ -9,9 +9,8 @@ import { buildableProducts, categoriesForKind } from "@/data/ingredients";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import { sumNutrition } from "@/lib/nutrition";
-import { buildPriceLines, previewCharge } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import type { CartItemSelection, ProductKind } from "@/types";
+import type { CartItemSelection, IngredientCategory, ProductKind } from "@/types";
 
 export const Route = createFileRoute("/monte")({
   head: () => ({
@@ -19,18 +18,18 @@ export const Route = createFileRoute("/monte")({
       { title: "Monte o seu — QUASE! saudável" },
       {
         name: "description",
-        content:
-          "Escolha a base, a proteína, os complementos e os extras. O preço e as informações nutricionais aproximadas atualizam na hora.",
-      },
-      { property: "og:title", content: "Monte o seu — QUASE! saudável" },
-      {
-        property: "og:description",
-        content: "Escolha a base, a proteína, os complementos e deixe tudo do seu jeito.",
+        content: "Escolha o tamanho, os ingredientes e monte seu pedido do seu jeito.",
       },
     ],
   }),
   component: MontePage,
 });
+
+const SALAD_LIMITS: Record<string, number> = {
+  "salada-300": 4,
+  "salada-500": 6,
+  "salada-750": 8,
+};
 
 function MontePage() {
   const [kind, setKind] = useState<ProductKind | null>(null);
@@ -38,66 +37,112 @@ function MontePage() {
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const { addItem, count } = useCart();
 
-  const categories = useMemo(() => (kind ? categoriesForKind(kind) : []), [kind]);
-  const productMeta = buildableProducts.find((p) => p.kind === kind);
+  const productMeta = buildableProducts.find((product) => product.kind === kind);
+  const selectedSize = selected.tamanho?.[0];
+
+  const categories = useMemo(() => {
+    if (!kind) return [];
+    const all = categoriesForKind(kind);
+    if (kind === "salada-folhas" && selectedSize === "salada-300") {
+      return all.filter((category) => category.id !== "proteina");
+    }
+    return all;
+  }, [kind, selectedSize]);
+
   const current = categories[step];
+  const ingredientLimit = selectedSize ? SALAD_LIMITS[selectedSize] : 0;
 
-  const lines = useMemo(() => buildPriceLines(categories, selected), [categories, selected]);
+  const chosen: CartItemSelection[] = useMemo(() => {
+    const selections: CartItemSelection[] = [];
+    categories.forEach((category) => {
+      (selected[category.id] ?? []).forEach((ingredientId) => {
+        const ingredient = category.ingredients.find((item) => item.id === ingredientId);
+        if (!ingredient) return;
+        const price = category.id === "tamanho" || category.id === "proteina" ? ingredient.price : 0;
+        selections.push({
+          categoryId: category.id,
+          categoryName: category.name,
+          ingredientId: ingredient.id,
+          name: ingredient.name,
+          portion: ingredient.portion,
+          price,
+        });
+      });
+    });
+    return selections;
+  }, [categories, selected]);
 
-  const chosen: CartItemSelection[] = useMemo(
-    () =>
-      lines.map((l) => ({
-        categoryId: l.categoryId as CartItemSelection["categoryId"],
-        categoryName: l.categoryName,
-        ingredientId: l.ingredient.id,
-        name: l.ingredient.name,
-        portion: l.ingredient.portion,
-        price: l.charge,
-      })),
-    [lines],
-  );
+  const nutrition = useMemo(() => {
+    const values = categories.flatMap((category) =>
+      (selected[category.id] ?? [])
+        .map((id) => category.ingredients.find((ingredient) => ingredient.id === id)?.nutrition)
+        .filter(Boolean),
+    );
+    return sumNutrition(values as { calories: number; protein: number; carbs: number; fat: number }[]);
+  }, [categories, selected]);
 
-  const nutrition = useMemo(
-    () => sumNutrition(lines.map((l) => l.ingredient.nutrition)),
-    [lines],
-  );
-  const extrasTotal = lines.reduce((sum, l) => sum + l.charge, 0);
-  const total = (productMeta?.basePrice ?? 0) + extrasTotal;
+  const sizePrice = categories
+    .find((category) => category.id === "tamanho")
+    ?.ingredients.find((ingredient) => ingredient.id === selectedSize)?.price ?? 0;
+  const proteinPrice = categories
+    .find((category) => category.id === "proteina")
+    ?.ingredients.find((ingredient) => ingredient.id === selected.proteina?.[0])?.price ?? 0;
+  const total = sizePrice + proteinPrice;
 
-  const toggle = (categoryId: string, mode: "single" | "multiple", ingredientId: string) => {
-    setSelected((prev) => {
-      const currentIds = prev[categoryId] ?? [];
-      if (mode === "single") {
-        return {
-          ...prev,
-          [categoryId]: currentIds.includes(ingredientId) ? [] : [ingredientId],
-        };
+  const currentSelectionCount = current ? (selected[current.id] ?? []).length : 0;
+  const currentStepValid = useMemo(() => {
+    if (!current) return false;
+    if (current.id === "complementos") return currentSelectionCount === ingredientLimit;
+    if (current.required) return currentSelectionCount > 0;
+    return true;
+  }, [current, currentSelectionCount, ingredientLimit]);
+
+  const requirementsOk = categories.every((category) => {
+    const amount = (selected[category.id] ?? []).length;
+    if (category.id === "complementos") return amount === ingredientLimit;
+    return category.required ? amount > 0 : true;
+  });
+
+  const toggle = (category: IngredientCategory, ingredientId: string) => {
+    setSelected((previous) => {
+      const currentIds = previous[category.id] ?? [];
+
+      if (category.selection === "single") {
+        const next = currentIds.includes(ingredientId) ? [] : [ingredientId];
+        const updated = { ...previous, [category.id]: next };
+        if (category.id === "tamanho") {
+          updated.complementos = [];
+          if (ingredientId === "salada-300") updated.proteina = [];
+        }
+        return updated;
       }
-      return {
-        ...prev,
-        [categoryId]: currentIds.includes(ingredientId)
-          ? currentIds.filter((i) => i !== ingredientId)
-          : [...currentIds, ingredientId],
-      };
+
+      if (currentIds.includes(ingredientId)) {
+        return { ...previous, [category.id]: currentIds.filter((id) => id !== ingredientId) };
+      }
+
+      if (category.id === "complementos" && currentIds.length >= ingredientLimit) {
+        toast.info(`Você já escolheu ${ingredientLimit} ingredientes.`);
+        return previous;
+      }
+
+      return { ...previous, [category.id]: [...currentIds, ingredientId] };
     });
   };
 
-  const requirementsOk = categories
-    .filter((c) => c.required)
-    .every((c) => (selected[c.id] ?? []).length > 0);
-
   const handleAdd = () => {
-    if (!kind || !productMeta) return;
+    if (!kind || !productMeta || !requirementsOk) return;
+    const sizeName = chosen.find((item) => item.categoryId === "tamanho")?.name;
     addItem({
       type: "montado",
       productId: `montado-${kind}`,
-      name: `${productMeta.name} do seu jeito`,
+      name: sizeName ? `${productMeta.name} ${sizeName}` : productMeta.name,
       unitPrice: total,
       quantity: 1,
       nutrition,
       selections: chosen,
     });
-    toast.success("Adicionado ao carrinho", { description: "Do seu jeito, do jeitinho certo." });
+    toast.success("Adicionado ao carrinho");
     setKind(null);
     setStep(0);
     setSelected({});
@@ -106,31 +151,37 @@ function MontePage() {
   if (!kind) {
     return (
       <div className="min-h-screen bg-background pb-32">
-        <PageHeader title="Monte o seu" subtitle="Comece escolhendo o que você quer montar" />
+        <PageHeader title="Monte o seu" subtitle="Escolha o que você quer montar" />
         <main className="mx-auto max-w-3xl space-y-3 px-5 pt-8">
-          <p className="pb-2 text-sm leading-relaxed text-muted-foreground">
-            Escolha por onde começar. Depois é só seguir os passos.
-          </p>
-          {buildableProducts.map((p) => (
+          {buildableProducts.map((product) => (
             <button
-              key={p.kind}
+              key={product.kind}
               type="button"
+              disabled={!product.available}
               onClick={() => {
-                setKind(p.kind);
+                if (!product.available) return;
+                setKind(product.kind);
                 setStep(0);
                 setSelected({});
               }}
-              className="flex w-full items-center justify-between gap-4 rounded-4xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:shadow-soft"
+              className={cn(
+                "flex w-full items-center justify-between gap-4 rounded-4xl border border-border bg-card p-6 text-left transition-all",
+                product.available
+                  ? "hover:border-foreground/20 hover:shadow-soft"
+                  : "cursor-not-allowed opacity-55",
+              )}
             >
               <span>
-                <span className="font-display block text-xl font-semibold">{p.name}</span>
-                <span className="mt-1 block text-sm text-muted-foreground">{p.description}</span>
+                <span className="font-display block text-xl font-semibold">{product.name}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{product.description}</span>
                 <span className="mt-3 block text-xs text-muted-foreground">
-                  Inclui {p.includes.join(" · ")}
+                  {product.available ? product.includes.join(" · ") : "Em breve"}
                 </span>
-                <span className="mt-2 block text-sm font-medium">
-                  a partir de {formatBRL(p.basePrice)}
-                </span>
+                {product.available && (
+                  <span className="mt-2 block text-sm font-medium">
+                    a partir de {formatBRL(product.basePrice)}
+                  </span>
+                )}
               </span>
               <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.6} />
             </button>
@@ -143,15 +194,14 @@ function MontePage() {
   return (
     <div className="min-h-screen bg-background pb-56">
       <PageHeader title={productMeta?.name ?? "Monte o seu"} subtitle="Do seu jeito" />
-
       <main className="mx-auto max-w-3xl px-5 pt-6">
         <div className="flex items-center gap-1.5">
-          {categories.map((c, i) => (
+          {categories.map((category, index) => (
             <div
-              key={c.id}
+              key={category.id}
               className={cn(
                 "h-0.5 flex-1 rounded-full transition-colors",
-                i <= step ? "bg-foreground" : "bg-border",
+                index <= step ? "bg-foreground" : "bg-border",
               )}
             />
           ))}
@@ -164,61 +214,51 @@ function MontePage() {
           <section className="mt-4 space-y-5">
             <div>
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
-              <p className="mt-1.5 text-sm text-muted-foreground">{current.helper}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {current.id === "complementos"
+                  ? `Escolha exatamente ${ingredientLimit} ingredientes. ${currentSelectionCount} de ${ingredientLimit} selecionados.`
+                  : current.helper}
+              </p>
             </div>
 
             <div className="grid gap-2.5 sm:grid-cols-2">
-              {current.ingredients.map((ing) => {
-                const selectedIds = selected[current.id] ?? [];
-                const isSelected = selectedIds.includes(ing.id);
-                const charge = previewCharge(current, ing, selectedIds);
+              {current.ingredients.map((ingredient) => {
+                const isSelected = (selected[current.id] ?? []).includes(ingredient.id);
+                const shownPrice = current.id === "tamanho" || current.id === "proteina";
                 return (
                   <button
-                    key={ing.id}
+                    key={ingredient.id}
                     type="button"
-                    disabled={!ing.available}
-                    onClick={() => toggle(current.id, current.selection, ing.id)}
+                    disabled={!ingredient.available}
+                    onClick={() => toggle(current, ingredient.id)}
                     className={cn(
                       "rounded-3xl border p-4 text-left transition-all",
                       isSelected
                         ? "border-foreground bg-accent"
                         : "border-border bg-card hover:border-foreground/25",
-                      !ing.available && "cursor-not-allowed opacity-45",
+                      !ingredient.available && "cursor-not-allowed opacity-45",
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium">{ing.name}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{ing.portion}</p>
+                      <div>
+                        <p className="font-medium">{ingredient.name}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion}</p>
                       </div>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {ing.available && (
-                          <span
-                            className={cn(
-                              "rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums",
-                              charge === 0
-                                ? "bg-sage/25 text-foreground"
-                                : "bg-lavender/40 text-foreground",
-                            )}
-                          >
-                            {charge === 0 ? "Incluso" : `+ ${formatBRL(charge)}`}
+                      <span className="flex items-center gap-2">
+                        {ingredient.available && shownPrice && (
+                          <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">
+                            {current.id === "proteina" ? `+ ${formatBRL(ingredient.price)}` : formatBRL(ingredient.price)}
                           </span>
                         )}
                         {isSelected && (
                           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background">
-                            <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                            <Check className="h-3.5 w-3.5" />
                           </span>
                         )}
                       </span>
                     </div>
-                    <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-                      {Math.round(ing.nutrition.calories)} kcal · {ing.nutrition.protein} g proteína
-                      · {ing.nutrition.carbs} g carb. · {ing.nutrition.fat} g gord.
-                    </p>
-                    {!ing.available && (
-                      <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">
-                        Indisponível hoje
-                      </p>
+                    {!ingredient.available && (
+                      <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>
                     )}
                   </button>
                 );
@@ -228,23 +268,19 @@ function MontePage() {
         )}
 
         <section className="mt-8 space-y-4 border-t border-border pt-6">
-          <h3 className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Seu pedido
-          </h3>
+          <h3 className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Seu pedido</h3>
           {chosen.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Suas escolhas aparecem aqui conforme você monta.
-            </p>
+            <p className="text-sm text-muted-foreground">Suas escolhas aparecem aqui conforme você monta.</p>
           ) : (
             <ul className="space-y-1.5 text-sm">
-              {chosen.map((s) => (
-                <li key={s.ingredientId} className="flex justify-between gap-3">
+              {chosen.map((selection) => (
+                <li key={selection.ingredientId} className="flex justify-between gap-3">
                   <span className="text-muted-foreground">
-                    {s.categoryName}: <span className="text-foreground">{s.name}</span>
+                    {selection.categoryName}: <span className="text-foreground">{selection.name}</span>
                   </span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {s.price === 0 ? "Incluso" : `+ ${formatBRL(s.price)}`}
-                  </span>
+                  {selection.price > 0 && selection.categoryId === "proteina" && (
+                    <span className="shrink-0 tabular-nums text-muted-foreground">+ {formatBRL(selection.price)}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -256,12 +292,8 @@ function MontePage() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md">
         <div className="mx-auto max-w-3xl space-y-3 px-5 pt-3 pb-5">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {Math.round(nutrition.calories)} kcal aprox.
-            </span>
-            <span className="font-display text-xl font-semibold tabular-nums">
-              {formatBRL(total)}
-            </span>
+            <span className="text-sm text-muted-foreground">Valores nutricionais aproximados</span>
+            <span className="font-display text-xl font-semibold tabular-nums">{formatBRL(total)}</span>
           </div>
           <div className="flex gap-2">
             <Button
@@ -274,17 +306,17 @@ function MontePage() {
               Voltar
             </Button>
             {step < categories.length - 1 ? (
-              <Button size="lg" className="flex-1 rounded-full" onClick={() => setStep(step + 1)}>
+              <Button
+                size="lg"
+                className="flex-1 rounded-full"
+                disabled={!currentStepValid}
+                onClick={() => setStep(step + 1)}
+              >
                 Continuar
                 <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button
-                size="lg"
-                className="flex-1 rounded-full"
-                disabled={!requirementsOk}
-                onClick={handleAdd}
-              >
+              <Button size="lg" className="flex-1 rounded-full" disabled={!requirementsOk} onClick={handleAdd}>
                 Adicionar ao carrinho
               </Button>
             )}
@@ -297,11 +329,6 @@ function MontePage() {
               </Button>
             )}
           </div>
-          {!requirementsOk && step === categories.length - 1 && (
-            <p className="text-center text-xs text-muted-foreground">
-              Escolha uma opção nos passos obrigatórios para continuar.
-            </p>
-          )}
         </div>
       </div>
     </div>
