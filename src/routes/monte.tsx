@@ -28,11 +28,12 @@ const LIMITS: Record<string, Partial<Record<string, number>>> = {
   "acai-300": { frutas: 2, caldas: 1, acompanhamentos: 4 },
   "acai-400": { frutas: 2, caldas: 2, acompanhamentos: 5 },
   "acai-500": { frutas: 2, caldas: 2, acompanhamentos: 6 },
+  "frutas-500": { "frutas-salada": 6 },
 };
 
-const SIZE_CATEGORIES = ["tamanho", "tamanho-acai"];
-const REPEATABLE_CATEGORIES = ["complementos", "frutas", "caldas", "acompanhamentos"];
-const CHARGEABLE_CATEGORIES = ["tamanho", "tamanho-acai", "proteina", "extras"];
+const SIZE_CATEGORIES = ["tamanho", "tamanho-acai", "tamanho-frutas"];
+const REPEATABLE_CATEGORIES = ["complementos", "frutas", "caldas", "acompanhamentos", "frutas-salada"];
+const CHARGEABLE_CATEGORIES = ["tamanho", "tamanho-acai", "tamanho-frutas", "proteina", "extras", "adicionais-frutas"];
 const SANDWICH_PRICE = 8;
 const SANDWICH_NUTRITION: Nutrition = { calories: 310, protein: 19, carbs: 30, fat: 13 };
 
@@ -45,7 +46,9 @@ function OrderBuilderPage() {
   const { addItem, count } = useCart();
 
   const productMeta = buildableProducts.find((product) => product.kind === kind);
-  const selectedSize = selected.tamanho?.[0] ?? selected["tamanho-acai"]?.[0];
+  const selectedSize = selected.tamanho?.[0]
+    ?? selected["tamanho-acai"]?.[0]
+    ?? selected["tamanho-frutas"]?.[0];
 
   const categories = useMemo(() => {
     if (!kind || kind === "sanduiche-natural") return [];
@@ -67,6 +70,7 @@ function OrderBuilderPage() {
         acc[id] = (acc[id] ?? 0) + 1;
         return acc;
       }, {});
+
       Object.entries(counts).forEach(([ingredientId, quantity]) => {
         const ingredient = category.ingredients.find((item) => item.id === ingredientId);
         if (!ingredient) return;
@@ -75,7 +79,7 @@ function OrderBuilderPage() {
           categoryName: category.name,
           ingredientId,
           name: quantity > 1 ? `${quantity}x ${ingredient.name}` : ingredient.name,
-          portion: quantity > 1 ? `${quantity} porções de ${ingredient.portion}` : ingredient.portion,
+          portion: quantity > 1 ? `${quantity} porções` : ingredient.portion,
           price: CHARGEABLE_CATEGORIES.includes(category.id) ? ingredient.price * quantity : 0,
         });
       });
@@ -119,13 +123,15 @@ function OrderBuilderPage() {
       const currentIds = previous[category.id] ?? [];
       const next = currentIds.includes(ingredientId) ? [] : [ingredientId];
       const updated = { ...previous, [category.id]: next };
+
       if (SIZE_CATEGORIES.includes(category.id)) {
         updated.complementos = [];
         updated.frutas = [];
         updated.caldas = [];
         updated.acompanhamentos = [];
+        updated["frutas-salada"] = [];
+        updated["adicionais-frutas"] = [];
         if (ingredientId === "salada-300") updated.proteina = [];
-        setStep(0);
       }
       return updated;
     });
@@ -225,35 +231,32 @@ function OrderBuilderPage() {
       <div className="min-h-screen bg-background pb-32">
         <PageHeader title="O que você vai pedir hoje?" subtitle="Escolha uma opção para começar" />
         <main className="mx-auto max-w-3xl space-y-3 px-5 pt-8">
-          {buildableProducts.map((product) => {
-            const isSandwich = product.kind === "sanduiche-natural";
-            const available = product.available || isSandwich;
-            const description = isSandwich
-              ? "Receita fixa com patê de frango, cenoura, tomate e alface."
-              : product.description;
-            const details = isSandwich ? "Pronto para pedir · receita da casa" : product.includes.join(" · ");
-
-            return (
-              <button
-                key={product.kind}
-                type="button"
-                disabled={!available}
-                onClick={() => available && selectProduct(product.kind)}
-                className={cn(
-                  "flex w-full items-center justify-between gap-4 rounded-4xl border border-border bg-card p-6 text-left transition-all",
-                  available ? "hover:border-foreground/20 hover:shadow-soft" : "cursor-not-allowed opacity-55",
-                )}
-              >
-                <span>
-                  <span className="font-display block text-xl font-semibold">{product.name}</span>
-                  <span className="mt-1 block text-sm text-muted-foreground">{description}</span>
-                  <span className="mt-3 block text-xs text-muted-foreground">{available ? details : "Em breve"}</span>
-                  {available && <span className="mt-2 block text-sm font-medium">{isSandwich ? formatBRL(SANDWICH_PRICE) : `a partir de ${formatBRL(product.basePrice)}`}</span>}
+          {buildableProducts.map((product) => (
+            <button
+              key={product.kind}
+              type="button"
+              disabled={!product.available}
+              onClick={() => product.available && selectProduct(product.kind)}
+              className={cn(
+                "flex w-full items-center justify-between gap-4 rounded-4xl border border-border bg-card p-6 text-left transition-all",
+                product.available ? "hover:border-foreground/20 hover:shadow-soft" : "cursor-not-allowed opacity-55",
+              )}
+            >
+              <span>
+                <span className="font-display block text-xl font-semibold">{product.name}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{product.description}</span>
+                <span className="mt-3 block text-xs text-muted-foreground">
+                  {product.available ? product.includes.join(" · ") : "Em breve"}
                 </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-              </button>
-            );
-          })}
+                {product.available && (
+                  <span className="mt-2 block text-sm font-medium">
+                    {product.kind === "sanduiche-natural" ? formatBRL(product.basePrice) : `a partir de ${formatBRL(product.basePrice)}`}
+                  </span>
+                )}
+              </span>
+              <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
         </main>
         {count > 0 && (
           <div className="fixed inset-x-0 bottom-5 z-40 px-5">
@@ -310,21 +313,27 @@ function OrderBuilderPage() {
             <div key={category.id} className={cn("h-0.5 flex-1 rounded-full", index <= step ? "bg-foreground" : "bg-border")} />
           ))}
         </div>
-        <p className="mt-3 text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Passo {step + 1} de {categories.length}</p>
+        <p className="mt-3 text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
+          Passo {step + 1} de {categories.length}
+        </p>
 
         {current && (
           <section className="mt-4 space-y-5">
             <div>
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                {currentLimit !== undefined ? `${current.helper} ${currentCount} de ${currentLimit} porções escolhidas.` : current.helper}
+                {currentLimit !== undefined
+                  ? `${current.helper} ${currentCount} de ${currentLimit} porções escolhidas.`
+                  : current.helper}
               </p>
             </div>
+
             <div className="grid gap-2.5 sm:grid-cols-2">
               {current.ingredients.map((ingredient) => {
                 const quantity = (selected[current.id] ?? []).filter((id) => id === ingredient.id).length;
                 const selectedNow = quantity > 0;
                 const repeatable = REPEATABLE_CATEGORIES.includes(current.id) && currentLimit !== undefined;
+
                 if (repeatable) {
                   return (
                     <div key={ingredient.id} className={cn("rounded-3xl border p-4", selectedNow ? "border-foreground bg-accent" : "border-border bg-card", !ingredient.available && "opacity-45")}>
@@ -339,12 +348,23 @@ function OrderBuilderPage() {
                     </div>
                   );
                 }
+
                 return (
-                  <button key={ingredient.id} type="button" disabled={!ingredient.available} onClick={() => current.selection === "multiple" ? toggleMultiple(current, ingredient.id) : toggleSingle(current, ingredient.id)} className={cn("rounded-3xl border p-4 text-left", selectedNow ? "border-foreground bg-accent" : "border-border bg-card hover:border-foreground/25", !ingredient.available && "cursor-not-allowed opacity-45")}>
+                  <button
+                    key={ingredient.id}
+                    type="button"
+                    disabled={!ingredient.available}
+                    onClick={() => current.selection === "multiple" ? toggleMultiple(current, ingredient.id) : toggleSingle(current, ingredient.id)}
+                    className={cn("rounded-3xl border p-4 text-left", selectedNow ? "border-foreground bg-accent" : "border-border bg-card hover:border-foreground/25", !ingredient.available && "cursor-not-allowed opacity-45")}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <IngredientInfo ingredient={ingredient} />
                       <span className="flex items-center gap-2">
-                        {ingredient.available && CHARGEABLE_CATEGORIES.includes(current.id) && <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">{SIZE_CATEGORIES.includes(current.id) ? formatBRL(ingredient.price) : `+ ${formatBRL(ingredient.price)}`}</span>}
+                        {ingredient.available && CHARGEABLE_CATEGORIES.includes(current.id) && (
+                          <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">
+                            {SIZE_CATEGORIES.includes(current.id) ? formatBRL(ingredient.price) : `+ ${formatBRL(ingredient.price)}`}
+                          </span>
+                        )}
                         {selectedNow && <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3.5 w-3.5" /></span>}
                       </span>
                     </div>
@@ -357,9 +377,16 @@ function OrderBuilderPage() {
 
         <section className="mt-8 space-y-4 border-t border-border pt-6">
           <h3 className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Seu pedido</h3>
-          {chosen.length === 0 ? <p className="text-sm text-muted-foreground">Suas escolhas aparecem aqui.</p> : (
+          {chosen.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Suas escolhas aparecem aqui.</p>
+          ) : (
             <ul className="space-y-1.5 text-sm">
-              {chosen.map((item) => <li key={`${item.categoryId}-${item.ingredientId}`} className="flex justify-between gap-3"><span className="text-muted-foreground">{item.categoryName}: <span className="text-foreground">{item.name}</span></span>{item.price > 0 && !SIZE_CATEGORIES.includes(item.categoryId) && <span className="shrink-0 text-muted-foreground">+ {formatBRL(item.price)}</span>}</li>)}
+              {chosen.map((item) => (
+                <li key={`${item.categoryId}-${item.ingredientId}`} className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">{item.categoryName}: <span className="text-foreground">{item.name}</span></span>
+                  {item.price > 0 && !SIZE_CATEGORIES.includes(item.categoryId) && <span className="shrink-0 text-muted-foreground">+ {formatBRL(item.price)}</span>}
+                </li>
+              ))}
             </ul>
           )}
           <LiveSummary total={total} nutrition={nutrition} />
@@ -368,10 +395,17 @@ function OrderBuilderPage() {
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md">
         <div className="mx-auto max-w-3xl space-y-3 px-5 pt-3 pb-5">
-          <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Valores nutricionais aproximados</span><span className="font-display text-xl font-semibold tabular-nums">{formatBRL(total)}</span></div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Valores nutricionais aproximados</span>
+            <span className="font-display text-xl font-semibold tabular-nums">{formatBRL(total)}</span>
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" size="lg" className="rounded-full" onClick={() => step === 0 ? setKind(null) : setStep(step - 1)}><ChevronLeft className="h-4 w-4" />Voltar</Button>
-            {step < categories.length - 1 ? <Button size="lg" className="flex-1 rounded-full" disabled={!stepValid} onClick={() => setStep(step + 1)}>Continuar<ChevronRight className="h-4 w-4" /></Button> : <Button size="lg" className="flex-1 rounded-full" disabled={!requirementsOk} onClick={handleCustomAdd}>Adicionar ao carrinho</Button>}
+            {step < categories.length - 1 ? (
+              <Button size="lg" className="flex-1 rounded-full" disabled={!stepValid} onClick={() => setStep(step + 1)}>Continuar<ChevronRight className="h-4 w-4" /></Button>
+            ) : (
+              <Button size="lg" className="flex-1 rounded-full" disabled={!requirementsOk} onClick={handleCustomAdd}>Adicionar ao carrinho</Button>
+            )}
             {count > 0 && <Button asChild variant="secondary" size="lg" className="rounded-full px-4"><Link to="/checkout"><ShoppingBag className="h-4 w-4" />{count}</Link></Button>}
           </div>
         </div>
@@ -383,7 +417,10 @@ function OrderBuilderPage() {
 function IngredientInfo({ ingredient }: { ingredient: Ingredient }) {
   return (
     <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-2"><p className="font-medium">{ingredient.name}</p>{ingredient.badge && <span className="rounded-full bg-lavender/45 px-2 py-0.5 text-[10px] font-semibold">{ingredient.badge}</span>}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium">{ingredient.name}</p>
+        {ingredient.badge && <span className="rounded-full bg-lavender/45 px-2 py-0.5 text-[10px] font-semibold">{ingredient.badge}</span>}
+      </div>
       <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion}</p>
       {!ingredient.available && <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>}
     </div>
