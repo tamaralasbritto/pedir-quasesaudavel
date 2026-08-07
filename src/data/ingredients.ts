@@ -34,7 +34,7 @@ export const buildableProducts: BuildableProduct[] = [
     description: "Receita fixa com patê de frango, cenoura, tomate e alface.",
     basePrice: 8,
     includes: ["Pronto para pedir", "receita da casa"],
-    available: true,
+    available: false,
   },
   {
     kind: "salada-frutas",
