@@ -48,6 +48,8 @@ export interface Ingredient {
   /** Valor usado como preço base ou adicional, conforme a categoria. */
   price: number;
   premium?: boolean;
+  /** Texto opcional exibido como selo. Para remover, basta apagar o campo. */
+  badge?: string;
   nutrition: Nutrition;
   image?: string;
   available: boolean;
