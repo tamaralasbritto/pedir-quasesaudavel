@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { LiveSummary } from "@/components/LiveSummary";
@@ -55,7 +55,12 @@ function MontePage() {
   const chosen: CartItemSelection[] = useMemo(() => {
     const selections: CartItemSelection[] = [];
     categories.forEach((category) => {
-      (selected[category.id] ?? []).forEach((ingredientId) => {
+      const counts = (selected[category.id] ?? []).reduce<Record<string, number>>((acc, id) => {
+        acc[id] = (acc[id] ?? 0) + 1;
+        return acc;
+      }, {});
+
+      Object.entries(counts).forEach(([ingredientId, quantity]) => {
         const ingredient = category.ingredients.find((item) => item.id === ingredientId);
         if (!ingredient) return;
         const price = category.id === "tamanho" || category.id === "proteina" ? ingredient.price : 0;
@@ -63,8 +68,8 @@ function MontePage() {
           categoryId: category.id,
           categoryName: category.name,
           ingredientId: ingredient.id,
-          name: ingredient.name,
-          portion: ingredient.portion,
+          name: quantity > 1 ? `${quantity}x ${ingredient.name}` : ingredient.name,
+          portion: quantity > 1 ? `${quantity} porções de ${ingredient.portion}` : ingredient.portion,
           price,
         });
       });
@@ -81,12 +86,14 @@ function MontePage() {
     return sumNutrition(values as { calories: number; protein: number; carbs: number; fat: number }[]);
   }, [categories, selected]);
 
-  const sizePrice = categories
-    .find((category) => category.id === "tamanho")
-    ?.ingredients.find((ingredient) => ingredient.id === selectedSize)?.price ?? 0;
-  const proteinPrice = categories
-    .find((category) => category.id === "proteina")
-    ?.ingredients.find((ingredient) => ingredient.id === selected.proteina?.[0])?.price ?? 0;
+  const sizePrice =
+    categories
+      .find((category) => category.id === "tamanho")
+      ?.ingredients.find((ingredient) => ingredient.id === selectedSize)?.price ?? 0;
+  const proteinPrice =
+    categories
+      .find((category) => category.id === "proteina")
+      ?.ingredients.find((ingredient) => ingredient.id === selected.proteina?.[0])?.price ?? 0;
   const total = sizePrice + proteinPrice;
 
   const currentSelectionCount = current ? (selected[current.id] ?? []).length : 0;
@@ -103,30 +110,37 @@ function MontePage() {
     return category.required ? amount > 0 : true;
   });
 
-  const toggle = (category: IngredientCategory, ingredientId: string) => {
+  const toggleSingle = (category: IngredientCategory, ingredientId: string) => {
     setSelected((previous) => {
       const currentIds = previous[category.id] ?? [];
+      const next = currentIds.includes(ingredientId) ? [] : [ingredientId];
+      const updated = { ...previous, [category.id]: next };
+      if (category.id === "tamanho") {
+        updated.complementos = [];
+        if (ingredientId === "salada-300") updated.proteina = [];
+      }
+      return updated;
+    });
+  };
 
-      if (category.selection === "single") {
-        const next = currentIds.includes(ingredientId) ? [] : [ingredientId];
-        const updated = { ...previous, [category.id]: next };
-        if (category.id === "tamanho") {
-          updated.complementos = [];
-          if (ingredientId === "salada-300") updated.proteina = [];
+  const changePortion = (ingredientId: string, delta: 1 | -1) => {
+    setSelected((previous) => {
+      const currentIds = previous.complementos ?? [];
+
+      if (delta === 1) {
+        if (currentIds.length >= ingredientLimit) {
+          toast.info(`Você já completou as ${ingredientLimit} porções.`);
+          return previous;
         }
-        return updated;
+        return { ...previous, complementos: [...currentIds, ingredientId] };
       }
 
-      if (currentIds.includes(ingredientId)) {
-        return { ...previous, [category.id]: currentIds.filter((id) => id !== ingredientId) };
-      }
-
-      if (category.id === "complementos" && currentIds.length >= ingredientLimit) {
-        toast.info(`Você já escolheu ${ingredientLimit} ingredientes.`);
-        return previous;
-      }
-
-      return { ...previous, [category.id]: [...currentIds, ingredientId] };
+      const lastIndex = currentIds.lastIndexOf(ingredientId);
+      if (lastIndex < 0) return previous;
+      return {
+        ...previous,
+        complementos: currentIds.filter((_, index) => index !== lastIndex),
+      };
     });
   };
 
@@ -216,21 +230,67 @@ function MontePage() {
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {current.id === "complementos"
-                  ? `Escolha exatamente ${ingredientLimit} ingredientes. ${currentSelectionCount} de ${ingredientLimit} selecionados.`
+                  ? `Distribua ${ingredientLimit} porções como preferir. Você pode repetir ingredientes. ${currentSelectionCount} de ${ingredientLimit} porções escolhidas.`
                   : current.helper}
               </p>
             </div>
 
             <div className="grid gap-2.5 sm:grid-cols-2">
               {current.ingredients.map((ingredient) => {
-                const isSelected = (selected[current.id] ?? []).includes(ingredient.id);
+                const quantity = (selected[current.id] ?? []).filter((id) => id === ingredient.id).length;
+                const isSelected = quantity > 0;
                 const shownPrice = current.id === "tamanho" || current.id === "proteina";
+
+                if (current.id === "complementos") {
+                  return (
+                    <div
+                      key={ingredient.id}
+                      className={cn(
+                        "rounded-3xl border p-4 transition-all",
+                        isSelected ? "border-foreground bg-accent" : "border-border bg-card",
+                        !ingredient.available && "opacity-45",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-medium">{ingredient.name}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion} por porção</p>
+                          {!ingredient.available && (
+                            <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            aria-label={`Remover uma porção de ${ingredient.name}`}
+                            disabled={!ingredient.available || quantity === 0}
+                            onClick={() => changePortion(ingredient.id, -1)}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background disabled:opacity-35"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-6 text-center text-lg font-semibold tabular-nums">{quantity}</span>
+                          <button
+                            type="button"
+                            aria-label={`Adicionar uma porção de ${ingredient.name}`}
+                            disabled={!ingredient.available || currentSelectionCount >= ingredientLimit}
+                            onClick={() => changePortion(ingredient.id, 1)}
+                            className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-35"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={ingredient.id}
                     type="button"
                     disabled={!ingredient.available}
-                    onClick={() => toggle(current, ingredient.id)}
+                    onClick={() => toggleSingle(current, ingredient.id)}
                     className={cn(
                       "rounded-3xl border p-4 text-left transition-all",
                       isSelected
@@ -247,7 +307,9 @@ function MontePage() {
                       <span className="flex items-center gap-2">
                         {ingredient.available && shownPrice && (
                           <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">
-                            {current.id === "proteina" ? `+ ${formatBRL(ingredient.price)}` : formatBRL(ingredient.price)}
+                            {current.id === "proteina"
+                              ? `+ ${formatBRL(ingredient.price)}`
+                              : formatBRL(ingredient.price)}
                           </span>
                         )}
                         {isSelected && (
@@ -274,12 +336,14 @@ function MontePage() {
           ) : (
             <ul className="space-y-1.5 text-sm">
               {chosen.map((selection) => (
-                <li key={selection.ingredientId} className="flex justify-between gap-3">
+                <li key={`${selection.categoryId}-${selection.ingredientId}`} className="flex justify-between gap-3">
                   <span className="text-muted-foreground">
                     {selection.categoryName}: <span className="text-foreground">{selection.name}</span>
                   </span>
                   {selection.price > 0 && selection.categoryId === "proteina" && (
-                    <span className="shrink-0 tabular-nums text-muted-foreground">+ {formatBRL(selection.price)}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      + {formatBRL(selection.price)}
+                    </span>
                   )}
                 </li>
               ))}
