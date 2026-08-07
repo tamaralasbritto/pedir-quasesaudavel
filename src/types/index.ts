@@ -5,7 +5,7 @@ export interface Nutrition {
   fat: number;
 }
 
-export type ProductKind = "salada-folhas" | "sanduiche-natural" | "salada-frutas";
+export type ProductKind = "salada-folhas" | "acai" | "sanduiche-natural" | "salada-frutas";
 
 export interface Product {
   id: string;
@@ -20,6 +20,7 @@ export interface Product {
 }
 
 export type IngredientCategoryId =
+  | "tamanho"
   | "base"
   | "proteina"
   | "complementos"
@@ -44,9 +45,8 @@ export interface Ingredient {
   id: string;
   name: string;
   portion: string;
-  /** Valor adicional cobrado quando o item não está incluso (ou é premium). */
+  /** Valor usado como preço base ou adicional, conforme a categoria. */
   price: number;
-  /** Proteínas premium são cobradas mesmo dentro da cota inclusa. */
   premium?: boolean;
   nutrition: Nutrition;
   image?: string;
