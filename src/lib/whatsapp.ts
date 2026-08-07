@@ -1,35 +1,40 @@
 import { WHATSAPP_NUMBER } from "@/config/business";
 import { formatBRL } from "@/lib/format";
-import type { Order } from "@/types";
+import type { CartItemSelection, Order } from "@/types";
 
-const paymentLabel = { pix: "Pix", dinheiro: "Dinheiro" } as const;
+const categoryLabels: Record<string, string> = {
+  complementos: "Ingredientes",
+  proteina: "Proteína",
+  molhos: "Molho",
+  extras: "Extras",
+  frutas: "Frutas",
+  caldas: "Caldas",
+  acompanhamentos: "Acompanhamentos",
+};
+
+function compactSelections(selections: CartItemSelection[]): string[] {
+  const grouped = selections.reduce<Record<string, string[]>>((acc, selection) => {
+    if (selection.categoryId === "tamanho") return acc;
+
+    const label = categoryLabels[selection.categoryId] ?? selection.categoryName;
+    acc[label] = [...(acc[label] ?? []), selection.name];
+    return acc;
+  }, {});
+
+  return Object.entries(grouped).map(([label, names]) => `*${label}:* ${names.join(", ")}`);
+}
 
 export function buildWhatsAppMessage(order: Order): string {
-  const lines: string[] = [];
-  lines.push("*Novo pedido — QUASE! saudável*", "");
-  lines.push(`*Cliente:* ${order.customer.name}`);
-  lines.push(`*Apartamento:* ${order.customer.apartment}`);
-  if (order.customer.whatsapp) lines.push(`*WhatsApp:* ${order.customer.whatsapp}`);
-  lines.push(`*Pagamento:* ${paymentLabel[order.payment]}`);
-  if (order.payment === "dinheiro") {
-    lines.push(
-      order.needsChange && order.changeFor
-        ? `*Troco para:* ${order.changeFor}`
-        : "*Troco:* não precisa",
-    );
-  }
-  lines.push("", "*Itens*");
+  const lines: string[] = ["*PEDIDO QUASE!*", `*Cliente:* ${order.customer.name} — *Apto:* ${order.customer.apartment}`, ""];
 
-  order.items.forEach((item) => {
-    lines.push(`${item.quantity}x ${item.name} — ${formatBRL(item.unitPrice * item.quantity)}`);
-    item.selections.forEach((s) => {
-      lines.push(`   • ${s.categoryName}: ${s.name} (${s.portion})`);
-    });
+  order.items.forEach((item, index) => {
+    lines.push(`*${item.quantity}x ${item.name} — ${formatBRL(item.unitPrice * item.quantity)}*`);
+    lines.push(...compactSelections(item.selections));
+    if (index < order.items.length - 1) lines.push("");
   });
 
-  lines.push("", `*Subtotal:* ${formatBRL(order.subtotal)}`);
-  if (order.notes?.trim()) lines.push("", `*Observações:* ${order.notes.trim()}`);
-  lines.push("", "Enviado pelo site QUASE! saudável");
+  lines.push("", `*Total:* ${formatBRL(order.subtotal)}`);
+  if (order.notes?.trim()) lines.push(`*Obs.:* ${order.notes.trim()}`);
 
   return lines.join("\n");
 }
