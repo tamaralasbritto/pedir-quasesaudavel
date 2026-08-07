@@ -10,33 +10,17 @@ export const Route = createFileRoute("/")({
       { title: "QUASE! saudável — Comida fresca entregue no seu condomínio" },
       {
         name: "description",
-        content:
-          "Saladas, sanduíches naturais e frutas preparados hoje. Peça pronto ou monte do seu jeito e finalize pelo WhatsApp.",
+        content: "Monte sua salada do seu jeito e finalize o pedido pelo WhatsApp.",
       },
       { property: "og:title", content: "QUASE! saudável — Comida fresca, preparada hoje" },
       {
         property: "og:description",
-        content: "Escolha uma opção e faça seu pedido em poucos minutos.",
+        content: "Escolha o tamanho, os ingredientes e faça seu pedido em poucos minutos.",
       },
     ],
   }),
   component: Home,
 });
-
-const navCards = [
-  {
-    to: "/prontos" as const,
-    title: "Prontos para você",
-    description: "Opções equilibradas, preparadas no dia e prontas para pedir.",
-    cta: "Ver opções",
-  },
-  {
-    to: "/monte" as const,
-    title: "Monte o seu",
-    description: "Escolha a base, a proteína, os complementos e deixe tudo do seu jeito.",
-    cta: "Começar",
-  },
-];
 
 function Home() {
   return (
@@ -58,50 +42,43 @@ function Home() {
             <br />
             Preparada hoje.
             <br />
-            <span className="italic font-normal text-olive">Entregue no seu condomínio.</span>
+            <span className="font-normal text-olive italic">Entregue no seu condomínio.</span>
           </h1>
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
-            Escolha uma opção e faça seu pedido em poucos minutos.
+            Escolha o tamanho, monte do seu jeito e faça seu pedido em poucos minutos.
           </p>
         </section>
 
         <img
           src={heroImage}
-          alt="Refeições frescas em potes: saladas, frutas e sanduíches naturais"
+          alt="Refeições frescas em potes"
           width={1536}
           height={1024}
           className="h-64 w-full rounded-4xl object-cover sm:h-80"
         />
 
-        <section className="mt-4 grid gap-3 sm:grid-cols-2">
-          {navCards.map((card) => (
-            <Link
-              key={card.to}
-              to={card.to}
-              className="group flex flex-col justify-between rounded-4xl border border-border bg-card p-6 transition-all hover:border-foreground/20 hover:shadow-soft"
-            >
-              <div className="space-y-2">
-                <h2 className="font-display text-2xl font-semibold">{card.title}</h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">{card.description}</p>
-              </div>
-              <Button
-                size="lg"
-                className="mt-8 w-full rounded-full"
-                variant={card.to === "/prontos" ? "default" : "secondary"}
-                asChild={false}
-                tabIndex={-1}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  {card.cta}
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </Button>
-            </Link>
-          ))}
+        <section className="mt-4">
+          <Link
+            to="/monte"
+            className="group flex flex-col justify-between rounded-4xl border border-border bg-card p-6 transition-all hover:border-foreground/20 hover:shadow-soft"
+          >
+            <div className="space-y-2">
+              <h2 className="font-display text-2xl font-semibold">Monte o seu</h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Escolha o produto, o tamanho e cada ingrediente do seu pedido.
+              </p>
+            </div>
+            <Button size="lg" className="mt-8 w-full rounded-full" tabIndex={-1}>
+              <span className="flex items-center justify-center gap-2">
+                Começar pedido
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Button>
+          </Link>
         </section>
 
         <section className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-8 text-center">
-          {["Pronto no dia", "Entrega no prédio", "Ingredientes frescos"].map((label) => (
+          {["Feito no dia", "Do seu jeito", "Entrega no prédio"].map((label) => (
             <p key={label} className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
               {label}
             </p>
