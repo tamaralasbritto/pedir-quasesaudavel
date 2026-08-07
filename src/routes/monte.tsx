@@ -35,6 +35,7 @@ function MontePage() {
   const [kind, setKind] = useState<ProductKind | null>(null);
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [justAdded, setJustAdded] = useState(false);
   const { addItem, count } = useCart();
 
   const productMeta = buildableProducts.find((product) => product.kind === kind);
@@ -63,7 +64,8 @@ function MontePage() {
       Object.entries(counts).forEach(([ingredientId, quantity]) => {
         const ingredient = category.ingredients.find((item) => item.id === ingredientId);
         if (!ingredient) return;
-        const price = category.id === "tamanho" || category.id === "proteina" ? ingredient.price : 0;
+        const chargeable = category.id === "tamanho" || category.id === "proteina" || category.id === "extras";
+        const price = chargeable ? ingredient.price * quantity : 0;
         selections.push({
           categoryId: category.id,
           categoryName: category.name,
@@ -94,7 +96,13 @@ function MontePage() {
     categories
       .find((category) => category.id === "proteina")
       ?.ingredients.find((ingredient) => ingredient.id === selected.proteina?.[0])?.price ?? 0;
-  const total = sizePrice + proteinPrice;
+  const extrasPrice = (selected.extras ?? []).reduce((sum, ingredientId) => {
+    const ingredient = categories
+      .find((category) => category.id === "extras")
+      ?.ingredients.find((item) => item.id === ingredientId);
+    return sum + (ingredient?.price ?? 0);
+  }, 0);
+  const total = sizePrice + proteinPrice + extrasPrice;
 
   const currentSelectionCount = current ? (selected[current.id] ?? []).length : 0;
   const currentStepValid = useMemo(() => {
@@ -123,6 +131,18 @@ function MontePage() {
     });
   };
 
+  const toggleMultiple = (category: IngredientCategory, ingredientId: string) => {
+    setSelected((previous) => {
+      const currentIds = previous[category.id] ?? [];
+      return {
+        ...previous,
+        [category.id]: currentIds.includes(ingredientId)
+          ? currentIds.filter((id) => id !== ingredientId)
+          : [...currentIds, ingredientId],
+      };
+    });
+  };
+
   const changePortion = (ingredientId: string, delta: 1 | -1) => {
     setSelected((previous) => {
       const currentIds = previous.complementos ?? [];
@@ -144,6 +164,13 @@ function MontePage() {
     });
   };
 
+  const resetBuilder = () => {
+    setJustAdded(false);
+    setKind(null);
+    setStep(0);
+    setSelected({});
+  };
+
   const handleAdd = () => {
     if (!kind || !productMeta || !requirementsOk) return;
     const sizeName = chosen.find((item) => item.categoryId === "tamanho")?.name;
@@ -156,11 +183,38 @@ function MontePage() {
       nutrition,
       selections: chosen,
     });
-    toast.success("Adicionado ao carrinho");
-    setKind(null);
-    setStep(0);
-    setSelected({});
+    setJustAdded(true);
   };
+
+  if (justAdded) {
+    return (
+      <div className="min-h-screen bg-background pb-12">
+        <PageHeader title="Adicionado ao carrinho" subtitle="Seu pedido foi salvo" />
+        <main className="mx-auto max-w-3xl px-5 pt-10">
+          <section className="rounded-4xl border border-border bg-card p-7 text-center shadow-soft">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-sage/30">
+              <Check className="h-7 w-7" />
+            </span>
+            <h1 className="font-display mt-5 text-3xl font-semibold">Tudo certo!</h1>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              O item já está no seu carrinho. Você pode montar outro produto ou conferir o pedido antes de finalizar.
+            </p>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              <Button variant="outline" size="lg" className="rounded-full" onClick={resetBuilder}>
+                Continuar comprando
+              </Button>
+              <Button asChild size="lg" className="rounded-full">
+                <Link to="/checkout">
+                  <ShoppingBag className="h-4 w-4" />
+                  Ir para o carrinho ({count})
+                </Link>
+              </Button>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
 
   if (!kind) {
     return (
@@ -201,6 +255,16 @@ function MontePage() {
             </button>
           ))}
         </main>
+        {count > 0 && (
+          <div className="fixed inset-x-0 bottom-5 z-40 px-5">
+            <Button asChild size="lg" className="mx-auto flex w-full max-w-3xl rounded-full shadow-soft">
+              <Link to="/checkout">
+                <ShoppingBag className="h-4 w-4" />
+                Ir para o carrinho ({count})
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -239,7 +303,8 @@ function MontePage() {
               {current.ingredients.map((ingredient) => {
                 const quantity = (selected[current.id] ?? []).filter((id) => id === ingredient.id).length;
                 const isSelected = quantity > 0;
-                const shownPrice = current.id === "tamanho" || current.id === "proteina";
+                const shownPrice =
+                  current.id === "tamanho" || current.id === "proteina" || current.id === "extras";
 
                 if (current.id === "complementos") {
                   return (
@@ -290,7 +355,11 @@ function MontePage() {
                     key={ingredient.id}
                     type="button"
                     disabled={!ingredient.available}
-                    onClick={() => toggleSingle(current, ingredient.id)}
+                    onClick={() =>
+                      current.selection === "multiple"
+                        ? toggleMultiple(current, ingredient.id)
+                        : toggleSingle(current, ingredient.id)
+                    }
                     className={cn(
                       "rounded-3xl border p-4 text-left transition-all",
                       isSelected
@@ -307,9 +376,9 @@ function MontePage() {
                       <span className="flex items-center gap-2">
                         {ingredient.available && shownPrice && (
                           <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">
-                            {current.id === "proteina"
-                              ? `+ ${formatBRL(ingredient.price)}`
-                              : formatBRL(ingredient.price)}
+                            {current.id === "tamanho"
+                              ? formatBRL(ingredient.price)
+                              : `+ ${formatBRL(ingredient.price)}`}
                           </span>
                         )}
                         {isSelected && (
@@ -340,7 +409,7 @@ function MontePage() {
                   <span className="text-muted-foreground">
                     {selection.categoryName}: <span className="text-foreground">{selection.name}</span>
                   </span>
-                  {selection.price > 0 && selection.categoryId === "proteina" && (
+                  {selection.price > 0 && selection.categoryId !== "tamanho" && (
                     <span className="shrink-0 tabular-nums text-muted-foreground">
                       + {formatBRL(selection.price)}
                     </span>
