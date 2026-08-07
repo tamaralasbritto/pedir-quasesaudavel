@@ -23,9 +23,9 @@ export const Route = createFileRoute("/")({
 
 const categories = [
   { emoji: "🥗", label: "Salada", available: true },
-  { emoji: "🍧", label: "Açaí", available: false },
+  { emoji: "🍧", label: "Açaí", available: true },
   { emoji: "🥪", label: "Sanduíche", available: false },
-  { emoji: "🍓", label: "Frutas", available: false },
+  { emoji: "🍓", label: "Frutas", available: true },
 ];
 
 function Home() {
