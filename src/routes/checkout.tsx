@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import { whatsappLink } from "@/lib/whatsapp";
-import type { PaymentMethod } from "@/types";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -20,8 +18,7 @@ export const Route = createFileRoute("/checkout")({
       { title: "Finalizar pedido — QUASE! saudável" },
       {
         name: "description",
-        content:
-          "Confirme seus dados, escolha a forma de pagamento e envie seu pedido pelo WhatsApp.",
+        content: "Confirme seus dados e envie seu pedido pelo WhatsApp.",
       },
       { property: "og:title", content: "Finalizar pedido — QUASE! saudável" },
       { property: "og:description", content: "Poucos campos e seu pedido está feito." },
@@ -35,9 +32,6 @@ function CheckoutPage() {
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [apartment, setApartment] = useState("");
-  const [payment, setPayment] = useState<PaymentMethod>("pix");
-  const [needsChange, setNeedsChange] = useState(false);
-  const [changeFor, setChangeFor] = useState("");
   const [notes, setNotes] = useState("");
 
   const canSubmit = name.trim() && whatsapp.trim() && apartment.trim() && items.length > 0;
@@ -49,15 +43,16 @@ function CheckoutPage() {
       });
       return;
     }
+
     const url = whatsappLink({
       customer: { name: name.trim(), whatsapp: whatsapp.trim(), apartment: apartment.trim() },
       items,
       subtotal,
-      payment,
-      needsChange,
-      changeFor,
+      payment: "pix",
+      needsChange: false,
       notes,
     });
+
     window.open(url, "_blank", "noopener,noreferrer");
     toast.success("Pedido enviado para o WhatsApp");
     clear();
@@ -72,7 +67,7 @@ function CheckoutPage() {
           <div className="rounded-4xl border border-border bg-card p-8 text-center shadow-soft">
             <p className="text-muted-foreground">Seu carrinho está vazio.</p>
             <Button asChild className="mt-4 rounded-full">
-              <Link to="/prontos">Ver opções prontas</Link>
+              <Link to="/monte">Escolher produtos</Link>
             </Button>
           </div>
         ) : (
@@ -84,7 +79,7 @@ function CheckoutPage() {
                 <Input
                   id="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(event) => setName(event.target.value)}
                   placeholder="Como podemos te chamar?"
                   className="h-12 rounded-2xl"
                 />
@@ -96,8 +91,8 @@ function CheckoutPage() {
                     id="whatsapp"
                     inputMode="tel"
                     value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                    placeholder="(11) 99999-9999"
+                    onChange={(event) => setWhatsapp(event.target.value)}
+                    placeholder="(81) 99999-9999"
                     className="h-12 rounded-2xl"
                   />
                 </div>
@@ -106,7 +101,7 @@ function CheckoutPage() {
                   <Input
                     id="apartment"
                     value={apartment}
-                    onChange={(e) => setApartment(e.target.value)}
+                    onChange={(event) => setApartment(event.target.value)}
                     placeholder="Torre / apto"
                     className="h-12 rounded-2xl"
                   />
@@ -114,72 +109,14 @@ function CheckoutPage() {
               </div>
             </section>
 
-            <section className="space-y-4 rounded-4xl border border-border bg-card p-5 shadow-soft">
+            <section className="rounded-4xl border border-border bg-card p-5 shadow-soft">
               <h2 className="font-display text-lg font-semibold text-olive-deep">Pagamento</h2>
-              <RadioGroup
-                value={payment}
-                onValueChange={(v) => setPayment(v as PaymentMethod)}
-                className="grid gap-3 sm:grid-cols-2"
-              >
-                {(
-                  [
-                    { value: "pix", label: "Pix", hint: "Enviamos a chave no WhatsApp" },
-                    { value: "dinheiro", label: "Dinheiro", hint: "Pague na entrega" },
-                  ] as const
-                ).map((opt) => (
-                  <Label
-                    key={opt.value}
-                    htmlFor={`pay-${opt.value}`}
-                    className="flex cursor-pointer items-center gap-3 rounded-3xl border border-border p-4 transition-colors has-[button[data-state=checked]]:border-olive has-[button[data-state=checked]]:bg-accent"
-                  >
-                    <RadioGroupItem id={`pay-${opt.value}`} value={opt.value} />
-                    <span>
-                      <span className="block font-semibold text-olive-deep">{opt.label}</span>
-                      <span className="block text-xs text-muted-foreground">{opt.hint}</span>
-                    </span>
-                  </Label>
-                ))}
-              </RadioGroup>
-
-              {payment === "dinheiro" && (
-                <div className="space-y-3 rounded-3xl bg-muted p-4">
-                  <p className="text-sm font-medium text-olive-deep">Precisa de troco?</p>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant={needsChange ? "default" : "outline"}
-                      className="flex-1 rounded-full"
-                      onClick={() => setNeedsChange(true)}
-                    >
-                      Sim
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={!needsChange ? "default" : "outline"}
-                      className="flex-1 rounded-full"
-                      onClick={() => {
-                        setNeedsChange(false);
-                        setChangeFor("");
-                      }}
-                    >
-                      Não
-                    </Button>
-                  </div>
-                  {needsChange && (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="change">Troco para quanto?</Label>
-                      <Input
-                        id="change"
-                        inputMode="decimal"
-                        value={changeFor}
-                        onChange={(e) => setChangeFor(e.target.value)}
-                        placeholder="R$ 100,00"
-                        className="h-12 rounded-2xl bg-background"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="mt-4 rounded-3xl border border-olive bg-accent p-4">
+                <p className="font-semibold text-olive-deep">Pix</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  A chave e as orientações serão enviadas pelo WhatsApp.
+                </p>
+              </div>
             </section>
 
             <section className="space-y-3 rounded-4xl border border-border bg-card p-5 shadow-soft">
@@ -189,16 +126,14 @@ function CheckoutPage() {
               <Textarea
                 id="notes"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(event) => setNotes(event.target.value)}
                 placeholder="Sem cebola, entregar depois das 12h..."
                 className="min-h-24 rounded-2xl"
               />
             </section>
 
             <section className="space-y-3 rounded-4xl border border-border bg-cream p-5 shadow-soft">
-              <h2 className="font-display text-lg font-semibold text-olive-deep">
-                Resumo do pedido
-              </h2>
+              <h2 className="font-display text-lg font-semibold text-olive-deep">Resumo do pedido</h2>
               {items.map((item) => (
                 <div key={item.id} className="rounded-3xl bg-background p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -206,9 +141,9 @@ function CheckoutPage() {
                       <p className="font-semibold text-olive-deep">{item.name}</p>
                       {item.selections.length > 0 && (
                         <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                          {item.selections.map((s) => (
-                            <li key={s.ingredientId}>
-                              {s.categoryName}: {s.name} · {s.portion}
+                          {item.selections.map((selection) => (
+                            <li key={`${selection.categoryId}-${selection.ingredientId}`}>
+                              {selection.categoryName}: {selection.name} · {selection.portion}
                             </li>
                           ))}
                         </ul>
@@ -222,7 +157,7 @@ function CheckoutPage() {
                     <QuantityStepper
                       size="sm"
                       value={item.quantity}
-                      onChange={(q) => updateQuantity(item.id, q)}
+                      onChange={(quantity) => updateQuantity(item.id, quantity)}
                     />
                     <button
                       type="button"
@@ -242,7 +177,7 @@ function CheckoutPage() {
               </div>
               <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                O pagamento é combinado direto no WhatsApp. Valores nutricionais são estimativas.
+                Pagamento exclusivamente por Pix. Valores nutricionais são estimativas.
               </p>
             </section>
           </>
