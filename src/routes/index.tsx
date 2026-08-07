@@ -1,91 +1,107 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
-import heroImage from "@/assets/hero.jpg";
+import { ArrowRight, MapPin } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "QUASE! saudável — Comida fresca entregue no seu condomínio" },
+      { title: "QUASE! saudável — Feito do seu jeito" },
       {
         name: "description",
-        content: "Monte sua salada do seu jeito e finalize o pedido pelo WhatsApp.",
+        content: "Escolha seus ingredientes e faça seu pedido no Torres de Olinda.",
       },
-      { property: "og:title", content: "QUASE! saudável — Comida fresca, preparada hoje" },
+      { property: "og:title", content: "QUASE! saudável — Feito do seu jeito" },
       {
         property: "og:description",
-        content: "Escolha o tamanho, os ingredientes e faça seu pedido em poucos minutos.",
+        content: "Você escolhe. A gente prepara.",
       },
     ],
   }),
   component: Home,
 });
 
+const categories = [
+  { emoji: "🥗", label: "Salada", available: true },
+  { emoji: "🍧", label: "Açaí", available: false },
+  { emoji: "🥪", label: "Sanduíche", available: false },
+  { emoji: "🍓", label: "Frutas", available: false },
+];
+
 function Home() {
   return (
-    <main className="min-h-screen bg-background pb-28">
+    <main className="min-h-screen bg-background pb-20">
       <div className="mx-auto max-w-3xl px-5">
-        <div className="flex items-center justify-between py-6">
+        <header className="flex items-center justify-between py-6">
           <BrandLogo asLink={false} />
-          <span className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">
-            Feito hoje
+          <span className="rounded-full bg-sage/20 px-3 py-1.5 text-[10px] font-medium tracking-[0.12em] text-olive uppercase">
+            Feito para você
           </span>
-        </div>
+        </header>
 
-        <section className="pt-6 pb-8">
+        <section className="pt-7 pb-8">
           <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
             Uma escolha melhor hoje já é o bastante
           </p>
-          <h1 className="font-display mt-5 text-[2.6rem] leading-[1.05] font-semibold tracking-tight sm:text-6xl">
-            Comida fresca.
+          <h1 className="font-display mt-5 text-[2.8rem] leading-[1.02] font-semibold tracking-tight sm:text-6xl">
+            Seu novo
             <br />
-            Preparada hoje.
-            <br />
-            <span className="font-normal text-olive italic">Entregue no seu condomínio.</span>
+            <span className="font-normal text-olive italic">QUASE favorito.</span>
           </h1>
+          <p className="font-display mt-4 text-2xl font-medium">Feito do seu jeito.</p>
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
-            Escolha o tamanho, monte do seu jeito e faça seu pedido em poucos minutos.
+            Você escolhe. A gente prepara. 💚
           </p>
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm">
+            <MapPin className="h-4 w-4 text-olive" />
+            Entrega no Torres de Olinda
+          </div>
         </section>
 
-        <img
-          src={heroImage}
-          alt="Refeições frescas em potes"
-          width={1536}
-          height={1024}
-          className="h-64 w-full rounded-4xl object-cover sm:h-80"
-        />
-
-        <section className="mt-4">
-          <Link
-            to="/monte"
-            className="group flex flex-col justify-between rounded-4xl border border-border bg-card p-6 transition-all hover:border-foreground/20 hover:shadow-soft"
-          >
-            <div className="space-y-2">
-              <h2 className="font-display text-2xl font-semibold">Monte o seu</h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Escolha o produto, o tamanho e cada ingrediente do seu pedido.
-              </p>
+        <section className="relative overflow-hidden rounded-4xl border border-border bg-beige p-6 shadow-soft sm:p-8">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: "radial-gradient(circle, #C8B6D9 1.5px, transparent 1.5px)",
+              backgroundSize: "22px 22px",
+            }}
+          />
+          <div className="relative">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {categories.map((category) => (
+                <div
+                  key={category.label}
+                  className="rounded-3xl border border-white/70 bg-white/85 p-4 text-center backdrop-blur-sm"
+                >
+                  <span className="text-3xl" aria-hidden="true">
+                    {category.emoji}
+                  </span>
+                  <p className="mt-2 text-sm font-medium">{category.label}</p>
+                  {!category.available && (
+                    <p className="mt-1 text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
+                      Em breve
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-            <Button size="lg" className="mt-8 w-full rounded-full" tabIndex={-1}>
-              <span className="flex items-center justify-center gap-2">
-                Começar pedido
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </Button>
-          </Link>
+
+            <div className="mt-6 rounded-3xl bg-background/90 p-5 backdrop-blur-sm">
+              <h2 className="font-display text-2xl font-semibold">O que você vai pedir hoje?</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Escolha o tamanho, distribua suas porções e deixe cada detalhe com a sua cara.
+              </p>
+              <Button asChild size="lg" className="mt-5 w-full rounded-full">
+                <Link to="/monte">
+                  Quero pedir
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
         </section>
 
-        <section className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-8 text-center">
-          {["Feito no dia", "Do seu jeito", "Entrega no prédio"].map((label) => (
-            <p key={label} className="text-[11px] tracking-[0.12em] text-muted-foreground uppercase">
-              {label}
-            </p>
-          ))}
-        </section>
-
-        <p className="font-display mt-12 text-center text-lg leading-relaxed italic text-muted-foreground">
+        <p className="font-display mt-10 text-center text-lg leading-relaxed italic text-muted-foreground">
           Ninguém precisa ser perfeito. Só precisa fazer uma escolha melhor hoje.
         </p>
       </div>
