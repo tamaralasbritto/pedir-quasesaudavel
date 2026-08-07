@@ -21,10 +21,13 @@ export interface Product {
 
 export type IngredientCategoryId =
   | "tamanho"
+  | "tamanho-acai"
   | "base"
   | "proteina"
   | "complementos"
   | "frutas"
+  | "caldas"
+  | "acompanhamentos"
   | "molhos"
   | "extras";
 
@@ -32,10 +35,8 @@ export interface IngredientCategory {
   id: IngredientCategoryId;
   name: string;
   helper: string;
-  /** "single" = escolha uma opção, "multiple" = pode escolher várias */
   selection: "single" | "multiple";
   required: boolean;
-  /** Quantas escolhas desta categoria já estão inclusas no preço base. */
   included: number;
   appliesTo: ProductKind[];
   ingredients: Ingredient[];
@@ -45,10 +46,8 @@ export interface Ingredient {
   id: string;
   name: string;
   portion: string;
-  /** Valor usado como preço base ou adicional, conforme a categoria. */
   price: number;
   premium?: boolean;
-  /** Texto opcional exibido como selo. Para remover, basta apagar o campo. */
   badge?: string;
   nutrition: Nutrition;
   image?: string;
@@ -76,7 +75,7 @@ export interface CartItem {
   image?: string;
 }
 
-export type PaymentMethod = "pix" | "dinheiro";
+export type PaymentMethod = "pix";
 
 export interface Customer {
   name: string;
