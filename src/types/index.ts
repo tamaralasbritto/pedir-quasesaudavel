@@ -22,14 +22,17 @@ export interface Product {
 export type IngredientCategoryId =
   | "tamanho"
   | "tamanho-acai"
+  | "tamanho-frutas"
   | "base"
   | "proteina"
   | "complementos"
   | "frutas"
+  | "frutas-salada"
   | "caldas"
   | "acompanhamentos"
   | "molhos"
-  | "extras";
+  | "extras"
+  | "adicionais-frutas";
 
 export interface IngredientCategory {
   id: IngredientCategoryId;
