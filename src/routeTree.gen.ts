@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as DiaDosPaisRouteImport } from './routes/dia-dos-pais'
 import { Route as MonteRouteImport } from './routes/monte'
 import { Route as ProntosRouteImport } from './routes/prontos'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiaDosPaisRoute = DiaDosPaisRouteImport.update({
+  id: '/dia-dos-pais',
+  path: '/dia-dos-pais',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MonteRoute = MonteRouteImport.update({
@@ -38,12 +44,14 @@ const ProntosRoute = ProntosRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
+  '/dia-dos-pais': typeof DiaDosPaisRoute
   '/monte': typeof MonteRoute
   '/prontos': typeof ProntosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
+  '/dia-dos-pais': typeof DiaDosPaisRoute
   '/monte': typeof MonteRoute
   '/prontos': typeof ProntosRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
+  '/dia-dos-pais': typeof DiaDosPaisRoute
   '/monte': typeof MonteRoute
   '/prontos': typeof ProntosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/checkout' | '/monte' | '/prontos'
+  fullPaths: '/' | '/checkout' | '/dia-dos-pais' | '/monte' | '/prontos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/checkout' | '/monte' | '/prontos'
-  id: '__root__' | '/' | '/checkout' | '/monte' | '/prontos'
+  to: '/' | '/checkout' | '/dia-dos-pais' | '/monte' | '/prontos'
+  id: '__root__' | '/' | '/checkout' | '/dia-dos-pais' | '/monte' | '/prontos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CheckoutRoute: typeof CheckoutRoute
+  DiaDosPaisRoute: typeof DiaDosPaisRoute
   MonteRoute: typeof MonteRoute
   ProntosRoute: typeof ProntosRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dia-dos-pais': {
+      id: '/dia-dos-pais'
+      path: '/dia-dos-pais'
+      fullPath: '/dia-dos-pais'
+      preLoaderRoute: typeof DiaDosPaisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/monte': {
@@ -105,9 +122,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CheckoutRoute: CheckoutRoute,
+  DiaDosPaisRoute: DiaDosPaisRoute,
   MonteRoute: MonteRoute,
   ProntosRoute: ProntosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
