@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Info } from "lucide-react";
+import { Check, ChevronsUpDown, Info } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -17,6 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { whatsappLink } from "@/lib/whatsapp";
 
 const blocks = ["A", "B", "C", "D"];
@@ -45,6 +54,7 @@ function CheckoutPage() {
   const [whatsapp, setWhatsapp] = useState("");
   const [block, setBlock] = useState("");
   const [apartment, setApartment] = useState("");
+  const [apartmentOpen, setApartmentOpen] = useState(false);
   const [notes, setNotes] = useState("");
 
   const canSubmit =
@@ -131,18 +141,47 @@ function CheckoutPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="apartment">Apartamento</Label>
-                  <Select value={apartment} onValueChange={setApartment}>
-                    <SelectTrigger id="apartment" className="h-12 rounded-2xl">
-                      <SelectValue placeholder="Selecione o apartamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {apartments.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={apartmentOpen} onOpenChange={setApartmentOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="apartment"
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={apartmentOpen}
+                        className="h-12 w-full justify-between rounded-2xl px-3 font-normal"
+                      >
+                        {apartment || "Busque ou selecione"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Digite o apartamento..." inputMode="numeric" />
+                        <CommandList>
+                          <CommandEmpty>Apartamento não encontrado.</CommandEmpty>
+                          {apartments.map((option) => (
+                            <CommandItem
+                              key={option}
+                              value={option}
+                              onSelect={() => {
+                                setApartment(option);
+                                setApartmentOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  apartment === option ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              {option}
+                            </CommandItem>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </section>
