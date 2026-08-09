@@ -301,8 +301,13 @@ function CheckoutPage() {
       {items.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-5 pt-3 pb-5 backdrop-blur-md">
           <div className="mx-auto max-w-3xl">
-            <Button size="lg" className="h-14 w-full rounded-full text-base" onClick={handleSubmit}>
-              Finalizar pedido no WhatsApp
+            <Button
+              size="lg"
+              className="h-14 w-full rounded-full text-base"
+              onClick={handleSubmit}
+              disabled={saving}
+            >
+              {saving ? "Salvando pedido..." : "Finalizar pedido no WhatsApp"}
             </Button>
           </div>
         </div>
