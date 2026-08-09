@@ -111,9 +111,9 @@ function FathersDayAcai() {
     setSelected((previous) => {
       const updated = { ...previous, [category.id]: [ingredientId] };
       if (category.id === "tamanho-acai") {
-        updated.frutas = [];
-        updated.caldas = [];
-        updated.acompanhamentos = [];
+        updated["frutas"] = [];
+        updated["caldas"] = [];
+        updated["acompanhamentos"] = [];
       }
       return updated;
     });

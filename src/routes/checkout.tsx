@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { saveOrder } from "@/lib/orders.functions";
 import { Check, ChevronsUpDown, Info } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
@@ -56,17 +58,21 @@ function CheckoutPage() {
   const [apartment, setApartment] = useState("");
   const [apartmentOpen, setApartmentOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const tokenRef = useRef<string | null>(null);
+  const persistOrder = useServerFn(saveOrder);
 
   const canSubmit =
     name.trim() && whatsapp.trim() && block && apartment && items.length > 0;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) {
       toast.error("Faltou preencher alguns dados", {
         description: "Nome, WhatsApp, bloco e apartamento são necessários.",
       });
       return;
     }
+    if (saving) return;
 
     const url = whatsappLink({
       customer: {
@@ -81,10 +87,41 @@ function CheckoutPage() {
       notes,
     });
 
+    setSaving(true);
+    try {
+      tokenRef.current ??= crypto.randomUUID();
+      await persistOrder({
+        data: {
+          checkoutToken: tokenRef.current,
+          customerName: name.trim(),
+          customerWhatsapp: whatsapp.trim() || null,
+          block: block as "A" | "B" | "C" | "D",
+          apartment,
+          notes: notes.trim() || null,
+          items: items.map((item) => ({
+            productId: item.productId ?? null,
+            productName: item.name,
+            quantity: item.quantity,
+            unitPriceCents: Math.round(item.unitPrice * 100),
+            selections: item.selections,
+          })),
+        },
+      });
+    } catch {
+      setSaving(false);
+      toast.error("Não conseguimos salvar seu pedido", {
+        description: "Tente novamente em alguns instantes.",
+      });
+      return;
+    }
+
     window.open(url, "_blank", "noopener,noreferrer");
     toast.success("Pedido enviado para o WhatsApp");
     clear();
+    tokenRef.current = null;
+    setSaving(false);
   };
+
 
   return (
     <div className="min-h-screen bg-background pb-40">
@@ -264,8 +301,13 @@ function CheckoutPage() {
       {items.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-5 pt-3 pb-5 backdrop-blur-md">
           <div className="mx-auto max-w-3xl">
-            <Button size="lg" className="h-14 w-full rounded-full text-base" onClick={handleSubmit}>
-              Finalizar pedido no WhatsApp
+            <Button
+              size="lg"
+              className="h-14 w-full rounded-full text-base"
+              onClick={handleSubmit}
+              disabled={saving}
+            >
+              {saving ? "Salvando pedido..." : "Finalizar pedido no WhatsApp"}
             </Button>
           </div>
         </div>
