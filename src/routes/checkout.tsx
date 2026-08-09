@@ -56,17 +56,21 @@ function CheckoutPage() {
   const [apartment, setApartment] = useState("");
   const [apartmentOpen, setApartmentOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const tokenRef = useRef<string | null>(null);
+  const persistOrder = useServerFn(saveOrder);
 
   const canSubmit =
     name.trim() && whatsapp.trim() && block && apartment && items.length > 0;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit) {
       toast.error("Faltou preencher alguns dados", {
         description: "Nome, WhatsApp, bloco e apartamento são necessários.",
       });
       return;
     }
+    if (saving) return;
 
     const url = whatsappLink({
       customer: {
@@ -81,10 +85,41 @@ function CheckoutPage() {
       notes,
     });
 
+    setSaving(true);
+    try {
+      tokenRef.current ??= crypto.randomUUID();
+      await persistOrder({
+        data: {
+          checkoutToken: tokenRef.current,
+          customerName: name.trim(),
+          customerWhatsapp: whatsapp.trim() || null,
+          block: block as "A" | "B" | "C" | "D",
+          apartment,
+          notes: notes.trim() || null,
+          items: items.map((item) => ({
+            productId: item.productId ?? null,
+            productName: item.name,
+            quantity: item.quantity,
+            unitPriceCents: Math.round(item.unitPrice * 100),
+            selections: item.selections,
+          })),
+        },
+      });
+    } catch {
+      setSaving(false);
+      toast.error("Não conseguimos salvar seu pedido", {
+        description: "Tente novamente em alguns instantes.",
+      });
+      return;
+    }
+
     window.open(url, "_blank", "noopener,noreferrer");
     toast.success("Pedido enviado para o WhatsApp");
     clear();
+    tokenRef.current = null;
+    setSaving(false);
   };
+
 
   return (
     <div className="min-h-screen bg-background pb-40">
