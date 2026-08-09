@@ -7,10 +7,22 @@ import { QuantityStepper } from "@/components/QuantityStepper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import { whatsappLink } from "@/lib/whatsapp";
+
+const blocks = ["A", "B", "C", "D"];
+const apartments = Array.from({ length: 10 }, (_, floor) =>
+  Array.from({ length: 10 }, (_, unit) => `${floor}${String(unit + 1).padStart(2, "0")}`),
+).flat();
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -31,21 +43,27 @@ function CheckoutPage() {
   const { items, subtotal, updateQuantity, removeItem, clear } = useCart();
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [block, setBlock] = useState("");
   const [apartment, setApartment] = useState("");
   const [notes, setNotes] = useState("");
 
-  const canSubmit = name.trim() && whatsapp.trim() && apartment.trim() && items.length > 0;
+  const canSubmit =
+    name.trim() && whatsapp.trim() && block && apartment && items.length > 0;
 
   const handleSubmit = () => {
     if (!canSubmit) {
       toast.error("Faltou preencher alguns dados", {
-        description: "Nome, WhatsApp e apartamento são necessários.",
+        description: "Nome, WhatsApp, bloco e apartamento são necessários.",
       });
       return;
     }
 
     const url = whatsappLink({
-      customer: { name: name.trim(), whatsapp: whatsapp.trim(), apartment: apartment.trim() },
+      customer: {
+        name: name.trim(),
+        whatsapp: whatsapp.trim(),
+        apartment: `Bloco ${block} · Apto ${apartment}`,
+      },
       items,
       subtotal,
       payment: "pix",
@@ -84,27 +102,47 @@ function CheckoutPage() {
                   className="h-12 rounded-2xl"
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <Input
+                  id="whatsapp"
+                  inputMode="tel"
+                  value={whatsapp}
+                  onChange={(event) => setWhatsapp(event.target.value)}
+                  placeholder="(81) 99999-9999"
+                  className="h-12 rounded-2xl"
+                />
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="whatsapp">WhatsApp</Label>
-                  <Input
-                    id="whatsapp"
-                    inputMode="tel"
-                    value={whatsapp}
-                    onChange={(event) => setWhatsapp(event.target.value)}
-                    placeholder="(81) 99999-9999"
-                    className="h-12 rounded-2xl"
-                  />
+                  <Label htmlFor="block">Bloco</Label>
+                  <Select value={block} onValueChange={setBlock}>
+                    <SelectTrigger id="block" className="h-12 rounded-2xl">
+                      <SelectValue placeholder="Selecione o bloco" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {blocks.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          Bloco {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="apartment">Apartamento</Label>
-                  <Input
-                    id="apartment"
-                    value={apartment}
-                    onChange={(event) => setApartment(event.target.value)}
-                    placeholder="Torre / apto"
-                    className="h-12 rounded-2xl"
-                  />
+                  <Select value={apartment} onValueChange={setApartment}>
+                    <SelectTrigger id="apartment" className="h-12 rounded-2xl">
+                      <SelectValue placeholder="Selecione o apartamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {apartments.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </section>
