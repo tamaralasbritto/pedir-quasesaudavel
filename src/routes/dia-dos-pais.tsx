@@ -29,6 +29,9 @@ const LIMITS: Record<string, Partial<Record<string, number>>> = {
 };
 
 const REPEATABLE = ["frutas", "caldas", "acompanhamentos"];
+const MAX_PER_INGREDIENT: Record<string, number> = {
+  "acai-fruta-morango": 1,
+};
 
 function FathersDayAcai() {
   const [step, setStep] = useState(0);
@@ -120,8 +123,12 @@ function FathersDayAcai() {
     setSelected((previous) => {
       const currentIds = previous[category.id] ?? [];
       const limit = selectedSize ? LIMITS[selectedSize]?.[category.id] : undefined;
+      const ingredientQuantity = currentIds.filter((id) => id === ingredientId).length;
+      const ingredientLimit = MAX_PER_INGREDIENT[ingredientId];
+
       if (delta === 1) {
         if (limit !== undefined && currentIds.length >= limit) return previous;
+        if (ingredientLimit !== undefined && ingredientQuantity >= ingredientLimit) return previous;
         return { ...previous, [category.id]: [...currentIds, ingredientId] };
       }
       const index = currentIds.lastIndexOf(ingredientId);
@@ -190,6 +197,8 @@ function FathersDayAcai() {
                 const quantity = (selected[current.id] ?? []).filter((id) => id === ingredient.id).length;
                 const selectedNow = quantity > 0;
                 const repeatable = REPEATABLE.includes(current.id) && currentLimit !== undefined;
+                const ingredientLimit = MAX_PER_INGREDIENT[ingredient.id];
+                const reachedIngredientLimit = ingredientLimit !== undefined && quantity >= ingredientLimit;
 
                 if (repeatable) {
                   return (
@@ -199,7 +208,7 @@ function FathersDayAcai() {
                         <div className="flex shrink-0 items-center gap-2">
                           <button type="button" disabled={!ingredient.available || quantity === 0} onClick={() => changePortion(current, ingredient.id, -1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background disabled:opacity-35"><Minus className="h-4 w-4" /></button>
                           <span className="w-6 text-center text-lg font-semibold">{quantity}</span>
-                          <button type="button" disabled={!ingredient.available || currentCount >= (currentLimit ?? 0)} onClick={() => changePortion(current, ingredient.id, 1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-35"><Plus className="h-4 w-4" /></button>
+                          <button type="button" disabled={!ingredient.available || reachedIngredientLimit || currentCount >= (currentLimit ?? 0)} onClick={() => changePortion(current, ingredient.id, 1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-35"><Plus className="h-4 w-4" /></button>
                         </div>
                       </div>
                     </div>
