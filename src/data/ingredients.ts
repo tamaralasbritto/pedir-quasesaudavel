@@ -152,6 +152,9 @@ export const ingredientCategories: IngredientCategory[] = [
     ingredients: [
       { id: "acai-fruta-morango", name: "Morango", portion: "1 porção", price: 0, nutrition: { calories: 19, protein: 0.4, carbs: 4.6, fat: 0.2 }, available: true },
       { id: "acai-fruta-banana", name: "Banana", portion: "1 porção", price: 0, nutrition: { calories: 53, protein: 0.7, carbs: 13.7, fat: 0.2 }, available: true },
+      { id: "acai-fruta-melancia", name: "Melancia", portion: "1 porção", price: 0, badge: "Só hoje", nutrition: zero, available: true },
+      { id: "acai-fruta-melao", name: "Melão", portion: "1 porção", price: 0, badge: "Só hoje", nutrition: zero, available: true },
+      { id: "acai-fruta-mamao", name: "Mamão", portion: "1 porção", price: 0, badge: "Só hoje", nutrition: zero, available: true },
     ],
   },
   {
