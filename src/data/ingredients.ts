@@ -1,3 +1,4 @@
+import { applyIngredientAvailability } from "@/config/availability";
 import type { IngredientCategory, ProductKind } from "@/types";
 
 export interface BuildableProduct {
@@ -244,4 +245,9 @@ export const ingredientCategories: IngredientCategory[] = [
 ];
 
 export const categoriesForKind = (kind: ProductKind) =>
-  ingredientCategories.filter((category) => category.appliesTo.includes(kind));
+  ingredientCategories
+    .filter((category) => category.appliesTo.includes(kind))
+    .map((category) => ({
+      ...category,
+      ingredients: category.ingredients.map(applyIngredientAvailability),
+    }));
