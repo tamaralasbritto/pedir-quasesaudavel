@@ -18,7 +18,7 @@ export const STORE_CONFIG: StoreConfig = {
   open: true,
   activeCampaign: null,
   products: {
-    miniSalad: true,
+    miniSalad: false,
     salad: false,
     acai: true,
     fruitSalad: false,
