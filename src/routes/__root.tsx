@@ -13,7 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
-
+import { STORE_CONFIG } from "@/config/store";
 
 function NotFoundComponent() {
   return (
@@ -129,14 +129,30 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function ClosedStore() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-5 py-16">
+      <section className="w-full max-w-3xl rounded-4xl border border-border bg-card px-6 py-16 text-center shadow-soft sm:px-10">
+        <span className="inline-flex rounded-full bg-lavender/45 px-4 py-2 text-[10px] font-semibold tracking-[0.14em] uppercase">
+          Encerramos por hoje
+        </span>
+        <h1 className="font-display mt-8 text-4xl font-semibold sm:text-6xl">A cozinha descansou. 💚</h1>
+        <p className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted-foreground">
+          Obrigada pelos pedidos de hoje. A QUASE! volta em breve.
+        </p>
+        <p className="font-display mt-10 text-2xl text-olive italic">Até já!</p>
+      </section>
+    </main>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <CartProvider>
-        <Outlet />
-
+        {STORE_CONFIG.open ? <Outlet /> : <ClosedStore />}
         <Toaster position="top-center" />
       </CartProvider>
     </QueryClientProvider>
