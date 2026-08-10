@@ -1,15 +1,20 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { STORE_CONFIG } from "@/config/store";
 
 export const Route = createFileRoute("/monte")({
   head: () => ({
     meta: [
-      { title: "Açaí QUASE! — Especial de Dia dos Pais" },
-      { name: "description", content: "Hoje o cardápio da QUASE! está dedicado ao açaí." },
+      { title: "Monte seu QUASE!" },
+      { name: "description", content: "Monte seu pedido QUASE! do seu jeito." },
     ],
   }),
-  component: FathersDayRedirect,
+  component: MenuRedirect,
 });
 
-function FathersDayRedirect() {
-  return <Navigate to="/dia-dos-pais" replace />;
+function MenuRedirect() {
+  if (STORE_CONFIG.activeCampaign === "dia-dos-pais") {
+    return <Navigate to="/dia-dos-pais" replace />;
+  }
+
+  return <Navigate to="/prontos" replace />;
 }
