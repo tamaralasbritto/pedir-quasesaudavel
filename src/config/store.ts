@@ -20,7 +20,7 @@ export const STORE_CONFIG: StoreConfig = {
   products: {
     miniSalad: true,
     salad: false,
-    acai: false,
+    acai: true,
     fruitSalad: false,
     sandwich: false,
   },
