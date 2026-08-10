@@ -16,7 +16,7 @@ export const Route = createFileRoute("/mini-salada")({
   component: MiniSaladPage,
 });
 
-const PRICE = 8;
+const PRICE = 6;
 
 function MiniSaladPage() {
   const [quantity, setQuantity] = useState(1);
