@@ -45,7 +45,7 @@ export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
   "extra-sementes": { available: false },
 
   // Açaí — frutas
-  "acai-fruta-morango": { available: true, maxPortions: 1 },
+  "acai-fruta-morango": { available: false, maxPortions: 1 },
   "acai-fruta-banana": { available: true },
   "acai-fruta-uva": { available: true, badge: "Só hoje" },
   "acai-fruta-melancia": { available: true, badge: "Só hoje" },
