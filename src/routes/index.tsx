@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, MapPin } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
+import { STORE_CONFIG } from "@/config/store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -22,10 +23,10 @@ export const Route = createFileRoute("/")({
 });
 
 const categories = [
-  { emoji: "🥗", label: "Mini salada", available: true },
-  { emoji: "🍧", label: "Açaí", available: false },
-  { emoji: "🥪", label: "Sanduíche", available: false },
-  { emoji: "🍓", label: "Frutas", available: false },
+  { emoji: "🥗", label: "Mini salada", available: STORE_CONFIG.products.miniSalad },
+  { emoji: "🍧", label: "Açaí", available: STORE_CONFIG.products.acai },
+  { emoji: "🥪", label: "Sanduíche", available: STORE_CONFIG.products.sandwich },
+  { emoji: "🍓", label: "Frutas", available: STORE_CONFIG.products.fruitSalad },
 ];
 
 function Home() {
