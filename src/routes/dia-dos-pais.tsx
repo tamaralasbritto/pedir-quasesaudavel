@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { LiveSummary } from "@/components/LiveSummary";
 import { Button } from "@/components/ui/button";
 import { getIngredientMaxPortions } from "@/config/availability";
+import { STORE_CONFIG } from "@/config/store";
 import { categoriesForKind } from "@/data/ingredients";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
@@ -15,11 +16,11 @@ import type { CartItemSelection, Ingredient, IngredientCategory, Nutrition } fro
 export const Route = createFileRoute("/dia-dos-pais")({
   head: () => ({
     meta: [
-      { title: "Dia dos Pais — QUASE! saudável" },
-      { name: "description", content: "Hoje tem açaí QUASE! com edição especial de Dia dos Pais." },
+      { title: "Açaí QUASE! saudável" },
+      { name: "description", content: "Monte seu açaí QUASE! do seu jeito." },
     ],
   }),
-  component: FathersDayAcai,
+  component: AcaiPage,
 });
 
 const LIMITS: Record<string, Partial<Record<string, number>>> = {
@@ -31,15 +32,16 @@ const LIMITS: Record<string, Partial<Record<string, number>>> = {
 
 const REPEATABLE = ["frutas", "caldas", "acompanhamentos"];
 
-function FathersDayAcai() {
+function AcaiPage() {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [justAdded, setJustAdded] = useState(false);
   const { addItem, count } = useCart();
+  const fathersDay = STORE_CONFIG.activeCampaign === "dia-dos-pais";
 
   const categories = useMemo(() => {
     return categoriesForKind("acai").map((category) => {
-      if (category.id !== "tamanho-acai") return category;
+      if (category.id !== "tamanho-acai" || !fathersDay) return category;
       return {
         ...category,
         helper: "Escolha seu tamanho. Hoje tem edição especial de Dia dos Pais.",
@@ -57,7 +59,7 @@ function FathersDayAcai() {
         ],
       };
     });
-  }, []);
+  }, [fathersDay]);
 
   const selectedSize = selected["tamanho-acai"]?.[0];
   const current = categories[step];
@@ -170,11 +172,13 @@ function FathersDayAcai() {
 
   return (
     <div className="min-h-screen bg-background pb-56">
-      <PageHeader title="Açaí QUASE!" subtitle="Especial de Dia dos Pais" />
+      <PageHeader title="Açaí QUASE!" subtitle={fathersDay ? "Especial de Dia dos Pais" : "Monte do seu jeito"} />
       <main className="mx-auto max-w-3xl px-5 pt-6">
-        <div className="mb-5 rounded-3xl bg-lavender/30 p-4 text-sm">
-          <strong>Hoje tem açaí quase saudável!</strong> O especial de 750 ml vem com 3 frutas, 3 caldas e 10 complementos por R$ 25.
-        </div>
+        {fathersDay && (
+          <div className="mb-5 rounded-3xl bg-lavender/30 p-4 text-sm">
+            <strong>Hoje tem açaí quase saudável!</strong> O especial de 750 ml vem com 3 frutas, 3 caldas e 10 complementos por R$ 25.
+          </div>
+        )}
 
         <div className="flex items-center gap-1.5">
           {categories.map((category, index) => <div key={category.id} className={cn("h-0.5 flex-1 rounded-full", index <= step ? "bg-foreground" : "bg-border")} />)}
