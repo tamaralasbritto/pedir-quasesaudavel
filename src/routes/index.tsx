@@ -6,15 +6,15 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "QUASE! saudável — Especial de Dia dos Pais" },
+      { title: "QUASE! saudável — Mini salada de hoje" },
       {
         name: "description",
-        content: "Hoje tem açaí QUASE! com opção especial de 750 ml no Torres de Olinda.",
+        content: "Hoje tem mini salada QUASE! no Torres de Olinda.",
       },
-      { property: "og:title", content: "QUASE! saudável — Especial de Dia dos Pais" },
+      { property: "og:title", content: "QUASE! saudável — Mini salada de hoje" },
       {
         property: "og:description",
-        content: "Hoje tem açaí QUASE! 💚",
+        content: "Hoje tem mini salada QUASE! 💚",
       },
     ],
   }),
@@ -22,8 +22,8 @@ export const Route = createFileRoute("/")({
 });
 
 const categories = [
-  { emoji: "🥗", label: "Salada", available: false },
-  { emoji: "🍧", label: "Açaí", available: true },
+  { emoji: "🥗", label: "Mini salada", available: true },
+  { emoji: "🍧", label: "Açaí", available: false },
   { emoji: "🥪", label: "Sanduíche", available: false },
   { emoji: "🍓", label: "Frutas", available: false },
 ];
@@ -34,22 +34,22 @@ function Home() {
       <div className="mx-auto max-w-3xl px-5">
         <header className="flex items-center justify-between py-6">
           <BrandLogo asLink={false} />
-          <span className="rounded-full bg-lavender/45 px-3 py-1.5 text-[10px] font-medium tracking-[0.12em] uppercase">
-            Especial Dia dos Pais
+          <span className="rounded-full bg-sage/20 px-3 py-1.5 text-[10px] font-medium tracking-[0.12em] text-olive uppercase">
+            Cozinha aberta
           </span>
         </header>
 
         <section className="pt-7 pb-8">
           <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">
-            Hoje tem açaí quase saudável!
+            Hoje tem um QUASE! mais simples
           </p>
           <h1 className="font-display mt-5 text-[2.8rem] leading-[1.02] font-semibold tracking-tight sm:text-6xl">
-            Açaí da QUASE!
+            Mini salada
             <br />
-            <span className="font-normal text-olive italic">com edição de Dia dos Pais.</span>
+            <span className="font-normal text-olive italic">pronta para acompanhar.</span>
           </h1>
           <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
-            Hoje o cardápio está dedicado ao açaí — e tem um especial de 750 ml com 3 frutas, 3 caldas e 10 complementos por R$ 25. 💚
+            Hoje a cozinha está com mini saladas de 300 ml com alface, tomate, cebola roxa e pepino. 💚
           </p>
           <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm">
             <MapPin className="h-4 w-4 text-olive" />
@@ -82,13 +82,13 @@ function Home() {
             </div>
 
             <div className="mt-6 rounded-3xl bg-background/90 p-5 backdrop-blur-sm">
-              <h2 className="font-display text-2xl font-semibold">Qual açaí você vai querer hoje?</h2>
+              <h2 className="font-display text-2xl font-semibold">Vai uma mini salada?</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Escolha o tamanho, as frutas, as caldas e seus complementos favoritos.
+                Receita fixa de hoje: alface, tomate, cebola roxa e pepino.
               </p>
               <Button asChild size="lg" className="mt-5 w-full rounded-full">
-                <Link to="/dia-dos-pais">
-                  Pedir meu açaí
+                <Link to="/mini-salada">
+                  Quero pedir
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -97,7 +97,7 @@ function Home() {
         </section>
 
         <p className="font-display mt-10 text-center text-lg leading-relaxed italic text-muted-foreground">
-          Mas corre: o tamanho especial é por tempo limitado.
+          Você monta a rotina. A gente prepara o QUASE! 💚
         </p>
       </div>
     </main>
