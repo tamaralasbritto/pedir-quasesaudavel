@@ -15,7 +15,6 @@ import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandLogo } from "@/components/BrandLogo";
 
-const STORE_CLOSED = true;
 
 function NotFoundComponent() {
   return (
