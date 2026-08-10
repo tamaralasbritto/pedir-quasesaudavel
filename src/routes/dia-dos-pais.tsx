@@ -4,6 +4,7 @@ import { Check, ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag } from "luci
 import { PageHeader } from "@/components/PageHeader";
 import { LiveSummary } from "@/components/LiveSummary";
 import { Button } from "@/components/ui/button";
+import { getIngredientMaxPortions } from "@/config/availability";
 import { categoriesForKind } from "@/data/ingredients";
 import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
@@ -29,9 +30,6 @@ const LIMITS: Record<string, Partial<Record<string, number>>> = {
 };
 
 const REPEATABLE = ["frutas", "caldas", "acompanhamentos"];
-const MAX_PER_INGREDIENT: Record<string, number> = {
-  "acai-fruta-morango": 1,
-};
 
 function FathersDayAcai() {
   const [step, setStep] = useState(0);
@@ -124,7 +122,7 @@ function FathersDayAcai() {
       const currentIds = previous[category.id] ?? [];
       const limit = selectedSize ? LIMITS[selectedSize]?.[category.id] : undefined;
       const ingredientQuantity = currentIds.filter((id) => id === ingredientId).length;
-      const ingredientLimit = MAX_PER_INGREDIENT[ingredientId];
+      const ingredientLimit = getIngredientMaxPortions(ingredientId);
 
       if (delta === 1) {
         if (limit !== undefined && currentIds.length >= limit) return previous;
@@ -197,7 +195,7 @@ function FathersDayAcai() {
                 const quantity = (selected[current.id] ?? []).filter((id) => id === ingredient.id).length;
                 const selectedNow = quantity > 0;
                 const repeatable = REPEATABLE.includes(current.id) && currentLimit !== undefined;
-                const ingredientLimit = MAX_PER_INGREDIENT[ingredient.id];
+                const ingredientLimit = getIngredientMaxPortions(ingredient.id);
                 const reachedIngredientLimit = ingredientLimit !== undefined && quantity >= ingredientLimit;
 
                 if (repeatable) {
