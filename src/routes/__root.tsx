@@ -13,9 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
-import { BrandLogo } from "@/components/BrandLogo";
 
-const STORE_CLOSED = true;
 
 function NotFoundComponent() {
   return (
@@ -91,7 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "QUASE! saudável" },
       {
         property: "og:description",
-        content: "A gente volta amanhã às 10h. 💚",
+        content: "Hoje tem mini salada QUASE! 💚",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -131,42 +129,14 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-function ClosedStore() {
-  return (
-    <main className="min-h-screen bg-background px-5 py-8">
-      <div className="mx-auto flex min-h-[80vh] max-w-3xl flex-col">
-        <header className="py-4">
-          <BrandLogo asLink={false} />
-        </header>
-
-        <section className="flex flex-1 items-center justify-center py-10">
-          <div className="w-full rounded-4xl border border-border bg-beige p-7 text-center shadow-soft sm:p-10">
-            <span className="inline-flex rounded-full bg-lavender/45 px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] uppercase">
-              Encerramos por hoje
-            </span>
-            <h1 className="font-display mt-6 text-4xl font-semibold leading-tight sm:text-5xl">
-              A cozinha descansou. 💚
-            </h1>
-            <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
-              Obrigada pelos pedidos de hoje. A QUASE! volta amanhã às <strong className="text-foreground">10h</strong>.
-            </p>
-            <p className="font-display mt-6 text-xl italic text-olive">
-              Até amanhã!
-            </p>
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <CartProvider>
-        {STORE_CLOSED ? <ClosedStore /> : <Outlet />}
+        <Outlet />
+
         <Toaster position="top-center" />
       </CartProvider>
     </QueryClientProvider>
