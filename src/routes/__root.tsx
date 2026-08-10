@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/lib/cart";
 import { Toaster } from "@/components/ui/sonner";
-import { BrandLogo } from "@/components/BrandLogo";
 
 
 function NotFoundComponent() {
@@ -90,7 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "QUASE! saudável" },
       {
         property: "og:description",
-        content: "A gente volta amanhã às 10h. 💚",
+        content: "Hoje tem mini salada QUASE! 💚",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
