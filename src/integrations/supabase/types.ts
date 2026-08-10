@@ -60,46 +60,49 @@ export type Database = {
       }
       orders: {
         Row: {
-          apartment: string
-          block: string
+          apartment: string | null
+          block: string | null
           checkout_token: string
           created_at: string
           customer_name: string
           customer_whatsapp: string | null
+          fulfillment_type: string
           id: string
           notes: string | null
           order_number: number
           status: string
           subtotal_cents: number
-          unit_key: string
+          unit_key: string | null
         }
         Insert: {
-          apartment: string
-          block: string
+          apartment?: string | null
+          block?: string | null
           checkout_token: string
           created_at?: string
           customer_name: string
           customer_whatsapp?: string | null
+          fulfillment_type?: string
           id?: string
           notes?: string | null
           order_number?: number
           status?: string
           subtotal_cents: number
-          unit_key: string
+          unit_key?: string | null
         }
         Update: {
-          apartment?: string
-          block?: string
+          apartment?: string | null
+          block?: string | null
           checkout_token?: string
           created_at?: string
           customer_name?: string
           customer_whatsapp?: string | null
+          fulfillment_type?: string
           id?: string
           notes?: string | null
           order_number?: number
           status?: string
           subtotal_cents?: number
-          unit_key?: string
+          unit_key?: string | null
         }
         Relationships: []
       }
