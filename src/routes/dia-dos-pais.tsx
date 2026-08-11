@@ -41,12 +41,17 @@ function AcaiPage() {
 
   const categories = useMemo(() => {
     return categoriesForKind("acai").map((category) => {
-      if (category.id !== "tamanho-acai" || !fathersDay) return category;
-      return {
+      const baseCategory = {
         ...category,
+        ingredients: category.ingredients.filter((ingredient) => ingredient.available),
+      };
+
+      if (category.id !== "tamanho-acai" || !fathersDay) return baseCategory;
+      return {
+        ...baseCategory,
         helper: "Escolha seu tamanho. Hoje tem edição especial de Dia dos Pais.",
         ingredients: [
-          ...category.ingredients,
+          ...baseCategory.ingredients,
           {
             id: "acai-750-pais",
             name: "750 ml — Especial Dia dos Pais",
@@ -204,13 +209,13 @@ function AcaiPage() {
 
                 if (repeatable) {
                   return (
-                    <div key={ingredient.id} className={cn("rounded-3xl border p-4", selectedNow ? "border-foreground bg-accent" : "border-border bg-card", !ingredient.available && "opacity-45")}>
+                    <div key={ingredient.id} className={cn("rounded-3xl border p-4", selectedNow ? "border-foreground bg-accent" : "border-border bg-card")}>
                       <div className="flex items-center justify-between gap-4">
                         <IngredientInfo ingredient={ingredient} />
                         <div className="flex shrink-0 items-center gap-2">
-                          <button type="button" disabled={!ingredient.available || quantity === 0} onClick={() => changePortion(current, ingredient.id, -1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background disabled:opacity-35"><Minus className="h-4 w-4" /></button>
+                          <button type="button" disabled={quantity === 0} onClick={() => changePortion(current, ingredient.id, -1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background disabled:opacity-35"><Minus className="h-4 w-4" /></button>
                           <span className="w-6 text-center text-lg font-semibold">{quantity}</span>
-                          <button type="button" disabled={!ingredient.available || reachedIngredientLimit || currentCount >= (currentLimit ?? 0)} onClick={() => changePortion(current, ingredient.id, 1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-35"><Plus className="h-4 w-4" /></button>
+                          <button type="button" disabled={reachedIngredientLimit || currentCount >= (currentLimit ?? 0)} onClick={() => changePortion(current, ingredient.id, 1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-35"><Plus className="h-4 w-4" /></button>
                         </div>
                       </div>
                     </div>
@@ -218,7 +223,7 @@ function AcaiPage() {
                 }
 
                 return (
-                  <button key={ingredient.id} type="button" disabled={!ingredient.available} onClick={() => toggleSingle(current, ingredient.id)} className={cn("rounded-3xl border p-4 text-left", selectedNow ? "border-foreground bg-accent" : "border-border bg-card", !ingredient.available && "opacity-45")}>
+                  <button key={ingredient.id} type="button" onClick={() => toggleSingle(current, ingredient.id)} className={cn("rounded-3xl border p-4 text-left", selectedNow ? "border-foreground bg-accent" : "border-border bg-card")}>
                     <div className="flex items-start justify-between gap-3">
                       <IngredientInfo ingredient={ingredient} />
                       {current.id === "tamanho-acai" && <span className="rounded-full bg-sage/25 px-2.5 py-1 text-[11px] font-medium">{formatBRL(ingredient.price)}</span>}
@@ -258,7 +263,6 @@ function IngredientInfo({ ingredient }: { ingredient: Ingredient }) {
         {ingredient.badge && <span className="rounded-full bg-lavender/45 px-2 py-0.5 text-[10px] font-semibold">{ingredient.badge}</span>}
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">{ingredient.portion}</p>
-      {!ingredient.available && <p className="mt-2 text-[11px] font-medium text-muted-foreground">Indisponível hoje</p>}
     </div>
   );
 }
