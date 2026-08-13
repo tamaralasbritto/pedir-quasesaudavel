@@ -1,37 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { ProductCard } from "@/components/ProductCard";
+import { STORE_CONFIG } from "@/config/store";
 import { products } from "@/data/products";
 
 export const Route = createFileRoute("/prontos")({
   head: () => ({
     meta: [
       { title: "Prontos para você — QUASE! saudável" },
-      {
-        name: "description",
-        content:
-          "Saladas de folhas, sanduíche natural de frango e salada de frutas preparados no dia, prontos para pedir.",
-      },
-      { property: "og:title", content: "Prontos para você — QUASE! saudável" },
-      {
-        property: "og:description",
-        content: "Opções equilibradas, preparadas no dia e prontas para pedir.",
-      },
+      { name: "description", content: "Opções QUASE! prontas para pedir." },
     ],
   }),
   component: ProntosPage,
 });
 
 function ProntosPage() {
+  const enabledProducts = products.filter((product) => {
+    if (product.kind === "sanduiche-natural") return STORE_CONFIG.products.sandwich;
+    if (product.kind === "salada-folhas") return STORE_CONFIG.products.salad;
+    if (product.kind === "salada-frutas") return STORE_CONFIG.products.fruitSalad;
+    return false;
+  });
+
   return (
     <div className="min-h-screen bg-background pb-32">
-      <PageHeader title="Prontos para você" subtitle="Preparados hoje pela manhã" />
+      <PageHeader title="Prontos para você" subtitle="Preparados para pedir" />
       <main className="mx-auto max-w-3xl space-y-5 px-5 pt-6">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Opções equilibradas, prontas para pedir. Valores nutricionais aproximados.
-        </p>
         <div className="grid gap-5 sm:grid-cols-2">
-          {products.map((product) => (
+          {enabledProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
