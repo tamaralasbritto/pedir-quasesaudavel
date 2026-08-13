@@ -15,13 +15,13 @@ export interface StoreConfig {
 }
 
 export const STORE_CONFIG: StoreConfig = {
-  open: false,
+  open: true,
   activeCampaign: null,
   products: {
     miniSalad: false,
     salad: false,
     acai: true,
     fruitSalad: false,
-    sandwich: false,
+    sandwich: true,
   },
 };
