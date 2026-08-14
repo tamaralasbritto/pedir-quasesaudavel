@@ -15,7 +15,7 @@ export interface StoreConfig {
 }
 
 export const STORE_CONFIG: StoreConfig = {
-  open: true,
+  open: false,
   activeCampaign: null,
   products: {
     miniSalad: false,
