@@ -22,6 +22,6 @@ export const STORE_CONFIG: StoreConfig = {
     salad: false,
     acai: true,
     fruitSalad: false,
-    sandwich: true,
+    sandwich: false,
   },
 };
