@@ -70,6 +70,7 @@ function AcaiPage() {
   const current = categories[step];
   const currentLimit = current && selectedSize ? LIMITS[selectedSize]?.[current.id] : undefined;
   const currentCount = current ? (selected[current.id] ?? []).length : 0;
+  const isFruitStep = current?.id === "frutas";
 
   const chosen: CartItemSelection[] = useMemo(() => {
     const result: CartItemSelection[] = [];
@@ -104,10 +105,18 @@ function AcaiPage() {
   }, [categories, selected]);
 
   const total = chosen.reduce((sum, item) => sum + item.price, 0);
-  const stepValid = currentLimit !== undefined ? currentCount === currentLimit : current?.required ? currentCount > 0 : true;
+  const stepValid = isFruitStep
+    ? true
+    : currentLimit !== undefined
+      ? currentCount === currentLimit
+      : current?.required
+        ? currentCount > 0
+        : true;
+
   const requirementsOk = categories.every((category) => {
     const amount = (selected[category.id] ?? []).length;
     const limit = selectedSize ? LIMITS[selectedSize]?.[category.id] : undefined;
+    if (category.id === "frutas") return limit === undefined || amount <= limit;
     if (limit !== undefined) return amount === limit;
     return category.required ? amount > 0 : true;
   });
@@ -195,7 +204,11 @@ function AcaiPage() {
             <div>
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                {currentLimit !== undefined ? `${current.helper} ${currentCount} de ${currentLimit} porções escolhidas.` : current.helper}
+                {isFruitStep && currentLimit !== undefined
+                  ? `Fruta é opcional. Escolha até ${currentLimit} porções ou siga sem fruta. ${currentCount} de ${currentLimit} escolhidas.`
+                  : currentLimit !== undefined
+                    ? `${current.helper} ${currentCount} de ${currentLimit} porções escolhidas.`
+                    : current.helper}
               </p>
             </div>
 
