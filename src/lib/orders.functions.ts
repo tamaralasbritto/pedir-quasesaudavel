@@ -83,7 +83,7 @@ export const saveOrder = createServerFn({ method: "POST" })
       throw new Error("Não foi possível salvar os itens do pedido.");
     }
 
-    // Livro-caixa: uma venda por pedido (índice único impede duplicidade).
+    // O pedido nasce como venda pendente: só vira dinheiro disponível quando o Pix for confirmado.
     const { error: financeError } = await supabaseAdmin.from("financial_transactions").insert({
       type: "sale",
       amount_cents: subtotalCents,
@@ -91,6 +91,8 @@ export const saveOrder = createServerFn({ method: "POST" })
       category: "vendas",
       source: "order",
       order_id: order.id,
+      settlement_status: "pending",
+      account_scope: "business",
       metadata: { unit_key: `${data.block}-${data.apartment}` } as never,
     });
     if (financeError && financeError.code !== "23505") {
