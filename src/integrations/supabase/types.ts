@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      financial_reserves: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          released_at: string | null
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          released_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          released_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      financial_transactions: {
+        Row: {
+          amount_cents: number
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          order_id: string | null
+          source: string | null
+          type: string
+        }
+        Insert: {
+          amount_cents: number
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          order_id?: string | null
+          source?: string | null
+          type: string
+        }
+        Update: {
+          amount_cents?: number
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          order_id?: string | null
+          source?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
