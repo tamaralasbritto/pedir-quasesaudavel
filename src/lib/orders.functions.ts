@@ -83,5 +83,19 @@ export const saveOrder = createServerFn({ method: "POST" })
       throw new Error("Não foi possível salvar os itens do pedido.");
     }
 
+    // Livro-caixa: uma venda por pedido (índice único impede duplicidade).
+    const { error: financeError } = await supabaseAdmin.from("financial_transactions").insert({
+      type: "sale",
+      amount_cents: subtotalCents,
+      description: `Pedido de ${data.customerName}`,
+      category: "vendas",
+      source: "order",
+      order_id: order.id,
+      metadata: { unit_key: `${data.block}-${data.apartment}` } as never,
+    });
+    if (financeError && financeError.code !== "23505") {
+      console.error("[finance] falha ao registrar venda", financeError);
+    }
+
     return { ok: true as const, orderId: order.id };
   });

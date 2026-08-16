@@ -96,9 +96,11 @@ export const applyIngredientAvailability = (ingredient: Ingredient): Ingredient 
   const config = getIngredientAvailability(ingredient.id);
   if (!config) return ingredient;
 
+  const badge = config.badge === null ? undefined : (config.badge ?? ingredient.badge);
+
   return {
     ...ingredient,
     available: config.available ?? ingredient.available,
-    badge: config.badge === null ? undefined : (config.badge ?? ingredient.badge),
+    ...(badge === undefined ? {} : { badge }),
   };
 };
