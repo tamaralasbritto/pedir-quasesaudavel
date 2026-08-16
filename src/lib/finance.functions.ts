@@ -38,7 +38,7 @@ export const recordTransaction = createServerFn({ method: "POST" })
         category: data.category,
         source: data.source,
         order_id: data.orderId,
-        metadata: data.metadata as Record<string, unknown>,
+        metadata: data.metadata as never,
         ...(data.occurredAt ? { occurred_at: data.occurredAt } : {}),
       })
       .select("id")
