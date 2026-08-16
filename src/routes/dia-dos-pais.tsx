@@ -31,6 +31,7 @@ const LIMITS: Record<string, Partial<Record<string, number>>> = {
 };
 
 const REPEATABLE = ["frutas", "caldas", "acompanhamentos"];
+const PURE_ACAI_ID = "acai-200-puro";
 
 function AcaiPage() {
   const [step, setStep] = useState(0);
@@ -46,12 +47,34 @@ function AcaiPage() {
         ingredients: category.ingredients.filter((ingredient) => ingredient.available),
       };
 
-      if (category.id !== "tamanho-acai" || !fathersDay) return baseCategory;
+      if (category.id !== "tamanho-acai") return baseCategory;
+
+      const regularSizes = [
+        {
+          id: PURE_ACAI_ID,
+          name: "200 ml — Açaí puro",
+          portion: "Sem frutas, caldas ou complementos",
+          price: 6,
+          badge: "Puro",
+          nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+          available: true,
+        },
+        ...baseCategory.ingredients,
+      ];
+
+      if (!fathersDay) {
+        return {
+          ...baseCategory,
+          helper: "Escolha o tamanho. O pote de 200 ml é açaí puro, sem acompanhamentos.",
+          ingredients: regularSizes,
+        };
+      }
+
       return {
         ...baseCategory,
         helper: "Escolha seu tamanho. Hoje tem edição especial de Dia dos Pais.",
         ingredients: [
-          ...baseCategory.ingredients,
+          ...regularSizes,
           {
             id: "acai-750-pais",
             name: "750 ml — Especial Dia dos Pais",
@@ -67,6 +90,7 @@ function AcaiPage() {
   }, [fathersDay]);
 
   const selectedSize = selected["tamanho-acai"]?.[0];
+  const isPureAcai = selectedSize === PURE_ACAI_ID;
   const current = categories[step];
   const currentLimit = current && selectedSize ? LIMITS[selectedSize]?.[current.id] : undefined;
   const currentCount = current ? (selected[current.id] ?? []).length : 0;
@@ -105,21 +129,25 @@ function AcaiPage() {
   }, [categories, selected]);
 
   const total = chosen.reduce((sum, item) => sum + item.price, 0);
-  const stepValid = isFruitStep
+  const stepValid = isPureAcai && step === 0
     ? true
-    : currentLimit !== undefined
-      ? currentCount === currentLimit
-      : current?.required
-        ? currentCount > 0
-        : true;
+    : isFruitStep
+      ? true
+      : currentLimit !== undefined
+        ? currentCount === currentLimit
+        : current?.required
+          ? currentCount > 0
+          : true;
 
-  const requirementsOk = categories.every((category) => {
-    const amount = (selected[category.id] ?? []).length;
-    const limit = selectedSize ? LIMITS[selectedSize]?.[category.id] : undefined;
-    if (category.id === "frutas") return limit === undefined || amount <= limit;
-    if (limit !== undefined) return amount === limit;
-    return category.required ? amount > 0 : true;
-  });
+  const requirementsOk = isPureAcai
+    ? Boolean(selectedSize)
+    : categories.every((category) => {
+        const amount = (selected[category.id] ?? []).length;
+        const limit = selectedSize ? LIMITS[selectedSize]?.[category.id] : undefined;
+        if (category.id === "frutas") return limit === undefined || amount <= limit;
+        if (limit !== undefined) return amount === limit;
+        return category.required ? amount > 0 : true;
+      });
 
   const toggleSingle = (category: IngredientCategory, ingredientId: string) => {
     setSelected((previous) => {
@@ -156,12 +184,12 @@ function AcaiPage() {
     const size = chosen.find((item) => item.categoryId === "tamanho-acai");
     addItem({
       type: "montado",
-      productId: selectedSize === "acai-750-pais" ? "acai-dia-dos-pais" : "montado-acai",
-      name: size ? `Açaí ${size.name}` : "Açaí",
+      productId: isPureAcai ? "acai-puro-200" : selectedSize === "acai-750-pais" ? "acai-dia-dos-pais" : "montado-acai",
+      name: isPureAcai ? "Açaí puro 200 ml" : size ? `Açaí ${size.name}` : "Açaí",
       unitPrice: total,
       quantity: 1,
       nutrition,
-      selections: chosen,
+      selections: isPureAcai ? [] : chosen,
     });
     setJustAdded(true);
   };
@@ -204,11 +232,13 @@ function AcaiPage() {
             <div>
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                {isFruitStep && currentLimit !== undefined
-                  ? `Fruta é opcional. Escolha até ${currentLimit} porções ou siga sem fruta. ${currentCount} de ${currentLimit} escolhidas.`
-                  : currentLimit !== undefined
-                    ? `${current.helper} ${currentCount} de ${currentLimit} porções escolhidas.`
-                    : current.helper}
+                {isPureAcai && current.id === "tamanho-acai"
+                  ? "O pote de 200 ml vai puro: só açaí, sem frutas, caldas ou complementos."
+                  : isFruitStep && currentLimit !== undefined
+                    ? `Fruta é opcional. Escolha até ${currentLimit} porções ou siga sem fruta. ${currentCount} de ${currentLimit} escolhidas.`
+                    : currentLimit !== undefined
+                      ? `${current.helper} ${currentCount} de ${currentLimit} porções escolhidas.`
+                      : current.helper}
               </p>
             </div>
 
@@ -255,7 +285,9 @@ function AcaiPage() {
         <div className="mx-auto max-w-3xl px-5 pt-3 pb-5">
           <div className="flex gap-2">
             <Button variant="outline" size="lg" className="rounded-full" disabled={step === 0} onClick={() => setStep(step - 1)}><ChevronLeft className="h-4 w-4" />Voltar</Button>
-            {step < categories.length - 1 ? (
+            {isPureAcai && step === 0 ? (
+              <Button size="lg" className="flex-1 rounded-full" disabled={!selectedSize} onClick={handleAdd}>Adicionar · {formatBRL(total)}</Button>
+            ) : step < categories.length - 1 ? (
               <Button size="lg" className="flex-1 rounded-full" disabled={!stepValid} onClick={() => setStep(step + 1)}>Continuar<ChevronRight className="h-4 w-4" /></Button>
             ) : (
               <Button size="lg" className="flex-1 rounded-full" disabled={!requirementsOk} onClick={handleAdd}>Adicionar ao carrinho</Button>
