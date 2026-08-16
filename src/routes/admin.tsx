@@ -4,8 +4,10 @@ import {
   CheckCircle2,
   Clock3,
   LogOut,
+  PiggyBank,
   RefreshCw,
   ShieldCheck,
+  Users,
   WalletCards,
 } from "lucide-react";
 
@@ -19,6 +21,7 @@ import {
   confirmOrderPayment,
   getAdminDashboard,
   markOrderPaymentPending,
+  registerOwnerWithdrawal,
   updateOrderStatus,
 } from "@/lib/admin.functions";
 
@@ -172,7 +175,7 @@ function AdminPage() {
           <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">QUASE! por dentro</p>
           <h1 className="font-display mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Pedidos e caixa.</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Pedido feito não é dinheiro disponível. Aqui o caixa só reconhece a venda depois da confirmação do Pix.
+            Pedido feito não é dinheiro disponível. O caixa só reconhece a venda depois da confirmação do Pix.
           </p>
         </section>
 
@@ -183,8 +186,9 @@ function AdminPage() {
         ) : null}
 
         <FinancialSummary dashboard={dashboard} />
+        <WithdrawalCard dashboard={dashboard} onDone={loadDashboard} onError={setError} />
 
-        <section className="mt-8">
+        <section className="mt-10">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <p className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Operação</p>
@@ -214,6 +218,8 @@ function AdminPage() {
             ))}
           </div>
         </section>
+
+        <CustomersSection dashboard={dashboard} />
       </div>
     </main>
   );
@@ -249,6 +255,74 @@ function FinancialSummary({ dashboard }: { dashboard: Dashboard }) {
         </Card>
       ))}
     </section>
+  );
+}
+
+function WithdrawalCard({
+  dashboard,
+  onDone,
+  onError,
+}: {
+  dashboard: Dashboard;
+  onDone: () => Promise<void>;
+  onError: (message: string | null) => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const amountCents = Math.round(Number(amount.replace(",", ".")) * 100);
+  const valid =
+    Number.isFinite(amountCents) &&
+    amountCents > 0 &&
+    amountCents <= Math.max(0, dashboard.summary.availableForWithdrawalCents);
+
+  return (
+    <Card className="mt-4 border-dashed">
+      <CardContent className="grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-end">
+        <div>
+          <div className="flex items-center gap-2">
+            <PiggyBank className="h-5 w-5 text-olive" />
+            <h2 className="font-display text-xl font-semibold">Retirada da proprietária</h2>
+          </div>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            Transfira o valor da conta da QUASE! para sua conta pessoal e registre a retirada aqui. O sistema bloqueia valores que invadam as reservas do negócio.
+          </p>
+        </div>
+        <div className="flex w-full gap-2 md:w-auto">
+          <Input
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="0,00"
+            className="h-10 w-32 rounded-xl"
+          />
+          <Button
+            disabled={!valid || saving}
+            className="rounded-full"
+            onClick={async () => {
+              setSaving(true);
+              onError(null);
+              try {
+                await registerOwnerWithdrawal({
+                  data: {
+                    amountCents,
+                    description: "Retirada da proprietária",
+                  },
+                });
+                setAmount("");
+                await onDone();
+              } catch (err) {
+                onError(err instanceof Error ? err.message : "Não foi possível registrar a retirada.");
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? "Registrando…" : "Registrar retirada"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -340,6 +414,44 @@ function OrderCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function CustomersSection({ dashboard }: { dashboard: Dashboard }) {
+  return (
+    <section className="mt-12">
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5 text-olive" />
+          <p className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Clientes + recompra</p>
+        </div>
+        <h2 className="font-display mt-1 text-3xl font-semibold">Quem está voltando.</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Agrupado por apartamento; retiradas ficam agrupadas pelo nome.</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {dashboard.customers.map((customer) => (
+          <Card key={customer.key}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium">{customer.customerName}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{customer.unitKey ?? "Retirada"}</p>
+                </div>
+                <Badge variant="outline" className="rounded-full">{customer.ordersCount}×</Badge>
+              </div>
+              <div className="mt-4 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Comprou</p>
+                  <p className="font-display text-xl font-semibold">{money(customer.totalSpentCents)}</p>
+                </div>
+                <p className="text-right text-xs text-muted-foreground">Último<br />{dateTime(customer.lastOrderAt)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -446,9 +558,7 @@ function AdminLogin({
                 {sent ? (
                   <p className="text-sm text-olive">Link enviado. Abra o e-mail neste dispositivo para entrar.</p>
                 ) : null}
-                {loginError || error ? (
-                  <p className="text-sm text-destructive">{loginError ?? error}</p>
-                ) : null}
+                {loginError || error ? <p className="text-sm text-destructive">{loginError ?? error}</p> : null}
               </form>
             )}
           </CardContent>
