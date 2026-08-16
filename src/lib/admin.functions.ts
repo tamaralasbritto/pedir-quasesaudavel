@@ -5,17 +5,15 @@ import { requireAdmin } from "@/lib/admin-auth";
 
 const ORDER_STATUSES = ["new", "confirmed", "preparing", "delivered", "cancelled"] as const;
 
-function sumByType(
-  rows: Array<{
-    type: string;
-    amount_cents: number;
-    settlement_status: string;
-    account_scope: string;
-    cash_status: string;
-  }>,
-  type: string,
-  options?: { businessAccountOnly?: boolean },
-) {
+type CashRow = {
+  type: string;
+  amount_cents: number;
+  settlement_status: string;
+  account_scope: string;
+  cash_status: string;
+};
+
+function sumByType(rows: CashRow[], type: string, options?: { businessAccountOnly?: boolean }) {
   return rows
     .filter(
       (row) =>
@@ -25,6 +23,25 @@ function sumByType(
         (!options?.businessAccountOnly || row.account_scope === "business"),
     )
     .reduce((total, row) => total + row.amount_cents, 0);
+}
+
+function calculateAccountSnapshot(transactions: CashRow[], activeReservesCents: number) {
+  const accountInflowsCents =
+    sumByType(transactions, "sale", { businessAccountOnly: true }) +
+    sumByType(transactions, "owner_contribution", { businessAccountOnly: true }) +
+    sumByType(transactions, "loan_in", { businessAccountOnly: true }) +
+    sumByType(transactions, "adjustment", { businessAccountOnly: true });
+
+  const accountOutflowsCents =
+    sumByType(transactions, "business_expense", { businessAccountOnly: true }) +
+    sumByType(transactions, "owner_withdrawal", { businessAccountOnly: true }) +
+    sumByType(transactions, "loan_payment", { businessAccountOnly: true });
+
+  const accountBalanceCents = accountInflowsCents - accountOutflowsCents;
+  return {
+    accountBalanceCents,
+    availableForWithdrawalCents: accountBalanceCents - activeReservesCents,
+  };
 }
 
 export const getAdminDashboard = createServerFn({ method: "GET" })
@@ -78,30 +95,62 @@ export const getAdminDashboard = createServerFn({ method: "GET" })
       };
     });
 
-    const transactions = transactionsResult.data ?? [];
-    const businessSalesCents = sumByType(transactions, "sale");
+    const customerMap = new Map<
+      string,
+      {
+        key: string;
+        customerName: string;
+        unitKey: string | null;
+        block: string | null;
+        apartment: string | null;
+        ordersCount: number;
+        totalSpentCents: number;
+        lastOrderAt: string;
+      }
+    >();
+
+    for (const order of orders) {
+      if (order.paymentStatus !== "settled" || order.status === "cancelled") continue;
+      const key = order.unit_key ?? `retirada:${order.customer_name.trim().toLowerCase()}`;
+      const existing = customerMap.get(key);
+      if (!existing) {
+        customerMap.set(key, {
+          key,
+          customerName: order.customer_name,
+          unitKey: order.unit_key,
+          block: order.block,
+          apartment: order.apartment,
+          ordersCount: 1,
+          totalSpentCents: order.subtotal_cents,
+          lastOrderAt: order.created_at,
+        });
+        continue;
+      }
+
+      existing.ordersCount += 1;
+      existing.totalSpentCents += order.subtotal_cents;
+      if (new Date(order.created_at) > new Date(existing.lastOrderAt)) {
+        existing.lastOrderAt = order.created_at;
+        existing.customerName = order.customer_name;
+      }
+    }
+
+    const customers = Array.from(customerMap.values()).sort(
+      (a, b) => b.ordersCount - a.ordersCount || b.totalSpentCents - a.totalSpentCents,
+    );
+
+    const transactions = (transactionsResult.data ?? []) as CashRow[];
+    const salesCents = sumByType(transactions, "sale");
     const businessExpensesCents = sumByType(transactions, "business_expense");
     const ownerWithdrawalsCents = sumByType(transactions, "owner_withdrawal");
     const ownerContributionsCents = sumByType(transactions, "owner_contribution");
     const loansInCents = sumByType(transactions, "loan_in");
     const loanPaymentsCents = sumByType(transactions, "loan_payment");
-
-    const accountInflowsCents =
-      sumByType(transactions, "sale", { businessAccountOnly: true }) +
-      sumByType(transactions, "owner_contribution", { businessAccountOnly: true }) +
-      sumByType(transactions, "loan_in", { businessAccountOnly: true }) +
-      sumByType(transactions, "adjustment", { businessAccountOnly: true });
-
-    const accountOutflowsCents =
-      sumByType(transactions, "business_expense", { businessAccountOnly: true }) +
-      sumByType(transactions, "owner_withdrawal", { businessAccountOnly: true }) +
-      sumByType(transactions, "loan_payment", { businessAccountOnly: true });
-
-    const accountBalanceCents = accountInflowsCents - accountOutflowsCents;
     const activeReservesCents = (reservesResult.data ?? []).reduce(
       (total, reserve) => total + reserve.amount_cents,
       0,
     );
+    const accountSnapshot = calculateAccountSnapshot(transactions, activeReservesCents);
 
     const pendingSalesCents = transactions
       .filter((row) => row.type === "sale" && row.settlement_status === "pending")
@@ -110,17 +159,17 @@ export const getAdminDashboard = createServerFn({ method: "GET" })
     return {
       adminRole: context.adminRole,
       orders,
+      customers,
       summary: {
-        salesCents: businessSalesCents,
+        salesCents,
         businessExpensesCents,
-        cashOperatingResultCents: businessSalesCents - businessExpensesCents,
+        cashOperatingResultCents: salesCents - businessExpensesCents,
         ownerWithdrawalsCents,
         ownerContributionsCents,
         outstandingLoansCents: loansInCents - loanPaymentsCents,
         pendingSalesCents,
-        accountBalanceCents,
         activeReservesCents,
-        availableForWithdrawalCents: accountBalanceCents - activeReservesCents,
+        ...accountSnapshot,
       },
     };
   });
@@ -140,10 +189,7 @@ export const confirmOrderPayment = createServerFn({ method: "POST" })
 
     const { data: payment, error } = await supabaseAdmin
       .from("financial_transactions")
-      .update({
-        settlement_status: "settled",
-        account_scope: data.accountScope,
-      })
+      .update({ settlement_status: "settled", account_scope: data.accountScope })
       .eq("type", "sale")
       .eq("order_id", data.orderId)
       .select("id")
@@ -153,10 +199,7 @@ export const confirmOrderPayment = createServerFn({ method: "POST" })
       console.error("[admin] falha ao confirmar pagamento", error);
       throw new Error("Não foi possível confirmar o pagamento.");
     }
-
-    if (!payment) {
-      throw new Error("Venda financeira não encontrada para este pedido.");
-    }
+    if (!payment) throw new Error("Venda financeira não encontrada para este pedido.");
 
     await supabaseAdmin
       .from("orders")
@@ -172,7 +215,6 @@ export const markOrderPaymentPending = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ orderId: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
     const { error } = await supabaseAdmin
       .from("financial_transactions")
       .update({ settlement_status: "pending" })
@@ -183,32 +225,78 @@ export const markOrderPaymentPending = createServerFn({ method: "POST" })
       console.error("[admin] falha ao reabrir pagamento", error);
       throw new Error("Não foi possível marcar o pagamento como pendente.");
     }
-
     return { ok: true as const };
   });
 
 export const updateOrderStatus = createServerFn({ method: "POST" })
   .middleware([requireAdmin])
   .inputValidator((input: unknown) =>
+    z.object({ orderId: z.string().uuid(), status: z.enum(ORDER_STATUSES) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("orders").update({ status: data.status }).eq("id", data.orderId);
+    if (error) {
+      console.error("[admin] falha ao atualizar pedido", error);
+      throw new Error("Não foi possível atualizar o pedido.");
+    }
+    return { ok: true as const };
+  });
+
+export const registerOwnerWithdrawal = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
+  .inputValidator((input: unknown) =>
     z
       .object({
-        orderId: z.string().uuid(),
-        status: z.enum(ORDER_STATUSES),
+        amountCents: z.number().int().positive(),
+        description: z.string().max(200).default("Retirada da proprietária"),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await supabaseAdmin
-      .from("orders")
-      .update({ status: data.status })
-      .eq("id", data.orderId);
+    const [transactionsResult, reservesResult] = await Promise.all([
+      supabaseAdmin
+        .from("financial_transactions")
+        .select("type, amount_cents, settlement_status, account_scope, cash_status"),
+      supabaseAdmin.from("financial_reserves").select("amount_cents").eq("status", "active"),
+    ]);
 
-    if (error) {
-      console.error("[admin] falha ao atualizar pedido", error);
-      throw new Error("Não foi possível atualizar o pedido.");
+    if (transactionsResult.error || reservesResult.error) {
+      throw new Error("Não foi possível validar o caixa antes da retirada.");
     }
 
-    return { ok: true as const };
+    const transactions = (transactionsResult.data ?? []) as CashRow[];
+    const activeReservesCents = (reservesResult.data ?? []).reduce(
+      (total, reserve) => total + reserve.amount_cents,
+      0,
+    );
+    const { availableForWithdrawalCents } = calculateAccountSnapshot(transactions, activeReservesCents);
+
+    if (data.amountCents > Math.max(0, availableForWithdrawalCents)) {
+      throw new Error("Essa retirada ultrapassa o valor disponível sem mexer nas reservas da QUASE!.");
+    }
+
+    const { error } = await supabaseAdmin.from("financial_transactions").insert({
+      type: "owner_withdrawal",
+      amount_cents: data.amountCents,
+      description: data.description,
+      category: "retirada_proprietaria",
+      source: "admin",
+      settlement_status: "settled",
+      account_scope: "business",
+      cash_status: "cleared",
+      metadata: { recorded_from: "admin_dashboard" },
+    });
+
+    if (error) {
+      console.error("[admin] falha ao registrar retirada", error);
+      throw new Error("Não foi possível registrar a retirada.");
+    }
+
+    return {
+      ok: true as const,
+      availableAfterCents: availableForWithdrawalCents - data.amountCents,
+    };
   });
