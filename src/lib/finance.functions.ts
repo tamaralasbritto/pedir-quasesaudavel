@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { requireAdmin } from "@/lib/admin-auth";
+
 const TRANSACTION_TYPES = [
   "sale",
   "business_expense",
@@ -30,6 +32,7 @@ const transactionSchema = z.object({
 });
 
 export const recordTransaction = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
   .inputValidator((input: unknown) => transactionSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -62,6 +65,7 @@ const reserveSchema = z.object({
 });
 
 export const createReserve = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
   .inputValidator((input: unknown) => reserveSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -88,6 +92,7 @@ export const createReserve = createServerFn({ method: "POST" })
   });
 
 export const releaseReserve = createServerFn({ method: "POST" })
+  .middleware([requireAdmin])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -116,71 +121,73 @@ export const releaseReserve = createServerFn({ method: "POST" })
     return { ok: true as const, alreadyReleased: false };
   });
 
-export const getFinancialSummary = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+export const getFinancialSummary = createServerFn({ method: "GET" })
+  .middleware([requireAdmin])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const [{ data: txs, error }, { data: reserves, error: reservesError }] = await Promise.all([
-    supabaseAdmin
-      .from("financial_transactions")
-      .select("type, amount_cents, settlement_status, account_scope"),
-    supabaseAdmin.from("financial_reserves").select("amount_cents").eq("status", "active"),
-  ]);
+    const [{ data: txs, error }, { data: reserves, error: reservesError }] = await Promise.all([
+      supabaseAdmin
+        .from("financial_transactions")
+        .select("type, amount_cents, settlement_status, account_scope"),
+      supabaseAdmin.from("financial_reserves").select("amount_cents").eq("status", "active"),
+    ]);
 
-  if (error || reservesError) throw new Error("Não foi possível carregar o resumo financeiro.");
+    if (error || reservesError) throw new Error("Não foi possível carregar o resumo financeiro.");
 
-  const activeTransactions = (txs ?? []).filter((t) => t.settlement_status !== "cancelled");
-  const settledBusinessTransactions = activeTransactions.filter(
-    (t) => t.settlement_status === "settled" && t.account_scope === "business",
-  );
+    const activeTransactions = (txs ?? []).filter((t) => t.settlement_status !== "cancelled");
+    const settledBusinessTransactions = activeTransactions.filter(
+      (t) => t.settlement_status === "settled" && t.account_scope === "business",
+    );
 
-  const sum = (
-    rows: typeof settledBusinessTransactions,
-    type: (typeof TRANSACTION_TYPES)[number],
-  ) => rows.filter((t) => t.type === type).reduce((acc, t) => acc + t.amount_cents, 0);
+    const sum = (
+      rows: typeof settledBusinessTransactions,
+      type: (typeof TRANSACTION_TYPES)[number],
+    ) => rows.filter((t) => t.type === type).reduce((acc, t) => acc + t.amount_cents, 0);
 
-  const pendingSalesCents = activeTransactions
-    .filter((t) => t.type === "sale" && t.settlement_status === "pending")
-    .reduce((acc, t) => acc + t.amount_cents, 0);
+    const pendingSalesCents = activeTransactions
+      .filter((t) => t.type === "sale" && t.settlement_status === "pending")
+      .reduce((acc, t) => acc + t.amount_cents, 0);
 
-  const externalSettledNetCents = activeTransactions
-    .filter((t) => t.settlement_status === "settled" && t.account_scope === "external")
-    .reduce((acc, t) => {
-      if (["sale", "owner_contribution", "loan_in", "adjustment"].includes(t.type)) {
-        return acc + t.amount_cents;
-      }
-      if (["business_expense", "owner_withdrawal", "loan_payment"].includes(t.type)) {
-        return acc - t.amount_cents;
-      }
-      return acc;
-    }, 0);
+    const externalSettledNetCents = activeTransactions
+      .filter((t) => t.settlement_status === "settled" && t.account_scope === "external")
+      .reduce((acc, t) => {
+        if (["sale", "owner_contribution", "loan_in", "adjustment"].includes(t.type)) {
+          return acc + t.amount_cents;
+        }
+        if (["business_expense", "owner_withdrawal", "loan_payment"].includes(t.type)) {
+          return acc - t.amount_cents;
+        }
+        return acc;
+      }, 0);
 
-  const salesCents = sum(settledBusinessTransactions, "sale");
-  const ownerContributionsCents = sum(settledBusinessTransactions, "owner_contribution");
-  const loanInCents = sum(settledBusinessTransactions, "loan_in");
-  const businessExpensesCents = sum(settledBusinessTransactions, "business_expense");
-  const ownerWithdrawalsCents = sum(settledBusinessTransactions, "owner_withdrawal");
-  const loanPaymentsCents = sum(settledBusinessTransactions, "loan_payment");
-  const adjustmentsCents = sum(settledBusinessTransactions, "adjustment");
+    const salesCents = sum(settledBusinessTransactions, "sale");
+    const ownerContributionsCents = sum(settledBusinessTransactions, "owner_contribution");
+    const loanInCents = sum(settledBusinessTransactions, "loan_in");
+    const businessExpensesCents = sum(settledBusinessTransactions, "business_expense");
+    const ownerWithdrawalsCents = sum(settledBusinessTransactions, "owner_withdrawal");
+    const loanPaymentsCents = sum(settledBusinessTransactions, "loan_payment");
+    const adjustmentsCents = sum(settledBusinessTransactions, "adjustment");
 
-  const inflowsCents = salesCents + ownerContributionsCents + loanInCents + adjustmentsCents;
-  const outflowsCents = businessExpensesCents + ownerWithdrawalsCents + loanPaymentsCents;
-  const balanceCents = inflowsCents - outflowsCents;
-  const activeReservesCents = (reserves ?? []).reduce((acc, r) => acc + r.amount_cents, 0);
+    const inflowsCents = salesCents + ownerContributionsCents + loanInCents + adjustmentsCents;
+    const outflowsCents = businessExpensesCents + ownerWithdrawalsCents + loanPaymentsCents;
+    const balanceCents = inflowsCents - outflowsCents;
+    const activeReservesCents = (reserves ?? []).reduce((acc, r) => acc + r.amount_cents, 0);
 
-  return {
-    salesCents,
-    pendingSalesCents,
-    ownerContributionsCents,
-    loanInCents,
-    adjustmentsCents,
-    inflowsCents,
-    businessExpensesCents,
-    ownerWithdrawalsCents,
-    loanPaymentsCents,
-    outflowsCents,
-    balanceCents,
-    activeReservesCents,
-    externalSettledNetCents,
-    availableForWithdrawalCents: balanceCents - activeReservesCents,
-  };
-});
+    return {
+      salesCents,
+      pendingSalesCents,
+      ownerContributionsCents,
+      loanInCents,
+      adjustmentsCents,
+      inflowsCents,
+      businessExpensesCents,
+      ownerWithdrawalsCents,
+      loanPaymentsCents,
+      outflowsCents,
+      balanceCents,
+      activeReservesCents,
+      externalSettledNetCents,
+      availableForWithdrawalCents: balanceCents - activeReservesCents,
+    };
+  });
