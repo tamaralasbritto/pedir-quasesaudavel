@@ -52,10 +52,9 @@ function AcaiPage() {
       const regularSizes = [
         {
           id: PURE_ACAI_ID,
-          name: "200 ml — Açaí puro",
+          name: "200 ml — só açaí",
           portion: "Sem frutas, caldas ou complementos",
           price: 6,
-          badge: "Puro",
           nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
           available: true,
         },
@@ -65,7 +64,7 @@ function AcaiPage() {
       if (!fathersDay) {
         return {
           ...baseCategory,
-          helper: "Escolha o tamanho. O pote de 200 ml é açaí puro, sem acompanhamentos.",
+          helper: "Escolha o tamanho. O pote de 200 ml vem só com o sorvete de açaí, sem acompanhamentos.",
           ingredients: regularSizes,
         };
       }
@@ -185,7 +184,7 @@ function AcaiPage() {
     addItem({
       type: "montado",
       productId: isPureAcai ? "acai-puro-200" : selectedSize === "acai-750-pais" ? "acai-dia-dos-pais" : "montado-acai",
-      name: isPureAcai ? "Açaí puro 200 ml" : size ? `Açaí ${size.name}` : "Açaí",
+      name: isPureAcai ? "Açaí 200 ml — só açaí" : size ? `Açaí ${size.name}` : "Açaí",
       unitPrice: total,
       quantity: 1,
       nutrition,
@@ -216,6 +215,10 @@ function AcaiPage() {
     <div className="min-h-screen bg-background pb-56">
       <PageHeader title="Açaí QUASE!" subtitle={fathersDay ? "Especial de Dia dos Pais" : "Monte do seu jeito"} />
       <main className="mx-auto max-w-3xl px-5 pt-6">
+        <p className="mb-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+          Nosso açaí é sorvete de açaí; não trabalhamos com açaí puro.
+        </p>
+
         {fathersDay && (
           <div className="mb-5 rounded-3xl bg-lavender/30 p-4 text-sm">
             <strong>Hoje tem açaí quase saudável!</strong> O especial de 750 ml vem com 3 frutas, 3 caldas e 10 complementos por R$ 25.
@@ -233,7 +236,7 @@ function AcaiPage() {
               <h2 className="font-display text-3xl font-semibold">{current.name}</h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {isPureAcai && current.id === "tamanho-acai"
-                  ? "O pote de 200 ml vai puro: só açaí, sem frutas, caldas ou complementos."
+                  ? "O pote de 200 ml vai só com o sorvete de açaí, sem frutas, caldas ou complementos."
                   : isFruitStep && currentLimit !== undefined
                     ? `Fruta é opcional. Escolha até ${currentLimit} porções ou siga sem fruta. ${currentCount} de ${currentLimit} escolhidas.`
                     : currentLimit !== undefined
