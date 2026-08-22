@@ -79,7 +79,7 @@ function Home() {
             <div className="mt-6 rounded-3xl bg-background/90 p-5 backdrop-blur-sm">
               <h2 className="font-display text-2xl font-semibold">Qual tamanho você vai querer?</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                300 ml, 400 ml ou 500 ml. Depois você escolhe os seus favoritos.
+                200 ml só açaí, 400 ml ou 500 ml. Depois você escolhe seus favoritos.
               </p>
               <Button asChild size="lg" className="mt-5 w-full rounded-full">
                 <Link to="/dia-dos-pais">
