@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as DiaDosPaisRouteImport } from './routes/dia-dos-pais'
 import { Route as MiniSaladaRouteImport } from './routes/mini-salada'
@@ -19,6 +20,11 @@ import { Route as ProntosRouteImport } from './routes/prontos'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutRoute = CheckoutRouteImport.update({
@@ -49,6 +55,7 @@ const ProntosRoute = ProntosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/dia-dos-pais': typeof DiaDosPaisRoute
   '/mini-salada': typeof MiniSaladaRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/dia-dos-pais': typeof DiaDosPaisRoute
   '/mini-salada': typeof MiniSaladaRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/dia-dos-pais': typeof DiaDosPaisRoute
   '/mini-salada': typeof MiniSaladaRoute
@@ -75,13 +84,26 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/checkout' | '/dia-dos-pais' | '/mini-salada' | '/monte' | '/prontos'
+    | '/'
+    | '/admin'
+    | '/checkout'
+    | '/dia-dos-pais'
+    | '/mini-salada'
+    | '/monte'
+    | '/prontos'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/checkout' | '/dia-dos-pais' | '/mini-salada' | '/monte' | '/prontos'
+    | '/'
+    | '/admin'
+    | '/checkout'
+    | '/dia-dos-pais'
+    | '/mini-salada'
+    | '/monte'
+    | '/prontos'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/checkout'
     | '/dia-dos-pais'
     | '/mini-salada'
@@ -91,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   CheckoutRoute: typeof CheckoutRoute
   DiaDosPaisRoute: typeof DiaDosPaisRoute
   MiniSaladaRoute: typeof MiniSaladaRoute
@@ -105,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout': {
@@ -147,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   CheckoutRoute: CheckoutRoute,
   DiaDosPaisRoute: DiaDosPaisRoute,
   MiniSaladaRoute: MiniSaladaRoute,

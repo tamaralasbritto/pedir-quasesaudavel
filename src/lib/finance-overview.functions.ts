@@ -18,11 +18,19 @@ export const getFinanceOverview = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: settings, error: settingsError } = await supabaseAdmin
-      .from("finance_settings")
+    interface FinanceSettings {
+      reporting_start_at: string;
+      cash_baseline_at: string;
+      cash_baseline_cents: number;
+    }
+
+    const { data: rawSettings, error: settingsError } = await supabaseAdmin
+      .from("finance_settings" as any)
       .select("reporting_start_at, cash_baseline_at, cash_baseline_cents")
       .eq("id", 1)
       .single();
+
+    const settings = rawSettings as FinanceSettings | null;
 
     if (settingsError || !settings) {
       console.error("[finance-v1] configurações indisponíveis", settingsError);
