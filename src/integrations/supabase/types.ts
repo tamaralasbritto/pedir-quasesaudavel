@@ -30,6 +30,30 @@ export type Database = {
         }
         Relationships: []
       }
+      finance_settings: {
+        Row: {
+          id: number
+          reporting_start_at: string
+          cash_baseline_at: string
+          cash_baseline_cents: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          reporting_start_at: string
+          cash_baseline_at: string
+          cash_baseline_cents: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          reporting_start_at?: string
+          cash_baseline_at?: string
+          cash_baseline_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_reserves: {
         Row: {
           id: string
@@ -78,6 +102,7 @@ export type Database = {
           account: string | null
           cash_status: string
           settlement_status: string
+          settled_at: string | null
           account_scope: string
         }
         Insert: {
@@ -94,6 +119,7 @@ export type Database = {
           account?: string | null
           cash_status?: string
           settlement_status?: string
+          settled_at?: string | null
           account_scope?: string
         }
         Update: {
@@ -110,6 +136,7 @@ export type Database = {
           account?: string | null
           cash_status?: string
           settlement_status?: string
+          settled_at?: string | null
           account_scope?: string
         }
         Relationships: [
@@ -121,6 +148,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      packaging_inventory: {
+        Row: {
+          size_ml: number
+          cups_count: number
+          lids_count: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          size_ml: number
+          cups_count?: number
+          lids_count?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          size_ml?: number
+          cups_count?: number
+          lids_count?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       order_items: {
         Row: {
