@@ -79,7 +79,7 @@ function Home() {
             <div className="mt-6 rounded-3xl bg-background/90 p-5 backdrop-blur-sm">
               <h2 className="font-display text-2xl font-semibold">Qual tamanho você vai querer?</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                200 ml sem acompanhamentos, 400 ml ou 500 ml. Depois você escolhe seus favoritos.
+                200 ml sem acompanhamentos, 300 ml, 400 ml ou 500 ml. Depois você escolhe seus favoritos.
               </p>
               <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/80">
                 Nosso produto é sorvete de açaí; não trabalhamos com açaí puro.
