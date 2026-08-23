@@ -1,15 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  Clock3,
-  LogOut,
-  PiggyBank,
-  RefreshCw,
-  ShieldCheck,
-  Users,
-  WalletCards,
-} from "lucide-react";
+import { CheckCircle2, Clock3, LogOut, RefreshCw, ShieldCheck, WalletCards } from "lucide-react";
 
 import { BrandLogo } from "@/components/BrandLogo";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +12,9 @@ import {
   confirmOrderPayment,
   getAdminDashboard,
   markOrderPaymentPending,
-  registerOwnerWithdrawal,
   updateOrderStatus,
 } from "@/lib/admin.functions";
+import { getFinanceOverview } from "@/lib/finance-overview.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -37,6 +28,8 @@ export const Route = createFileRoute("/admin")({
 
 type Dashboard = Awaited<ReturnType<typeof getAdminDashboard>>;
 type Order = Dashboard["orders"][number];
+type FinanceOverview = Awaited<ReturnType<typeof getFinanceOverview>>;
+type PeriodKey = "today" | "7d" | "30d" | "all" | "custom";
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
   new: "Novo",
@@ -61,12 +54,67 @@ function dateTime(value: string) {
   }).format(new Date(value));
 }
 
+function recifeYmd(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Recife",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function shiftYmd(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function toPeriodIso(startYmd: string, endYmd: string) {
+  return {
+    startAt: new Date(`${startYmd}T00:00:00-03:00`).toISOString(),
+    endAt: new Date(`${shiftYmd(endYmd, 1)}T00:00:00-03:00`).toISOString(),
+  };
+}
+
+function resolvePeriod(period: PeriodKey, customStart: string, customEnd: string) {
+  const today = recifeYmd();
+  if (period === "today") return toPeriodIso(today, today);
+  if (period === "7d") return toPeriodIso(shiftYmd(today, -6), today);
+  if (period === "30d") return toPeriodIso(shiftYmd(today, -29), today);
+  if (period === "all") return toPeriodIso("2000-01-01", today);
+  return toPeriodIso(customStart || today, customEnd || today);
+}
+
 function AdminPage() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [finance, setFinance] = useState<FinanceOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [financeLoading, setFinanceLoading] = useState(false);
   const [workingOrderId, setWorkingOrderId] = useState<string | null>(null);
   const [sessionState, setSessionState] = useState<"signed-out" | "signed-in" | "denied">("signed-out");
   const [error, setError] = useState<string | null>(null);
+  const [financeError, setFinanceError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<PeriodKey>("all");
+  const [customStart, setCustomStart] = useState(recifeYmd());
+  const [customEnd, setCustomEnd] = useState(recifeYmd());
+
+  const periodRange = useMemo(
+    () => resolvePeriod(period, customStart, customEnd),
+    [period, customStart, customEnd],
+  );
+
+  const loadFinance = useCallback(async () => {
+    setFinanceLoading(true);
+    setFinanceError(null);
+    try {
+      const next = await getFinanceOverview({ data: periodRange });
+      setFinance(next);
+    } catch (err) {
+      setFinanceError(err instanceof Error ? err.message : "Não foi possível carregar o financeiro.");
+    } finally {
+      setFinanceLoading(false);
+    }
+  }, [periodRange]);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -75,6 +123,7 @@ function AdminPage() {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
       setDashboard(null);
+      setFinance(null);
       setSessionState("signed-out");
       setLoading(false);
       return;
@@ -96,13 +145,13 @@ function AdminPage() {
 
   useEffect(() => {
     void loadDashboard();
-
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      void loadDashboard();
-    });
-
+    const { data } = supabase.auth.onAuthStateChange(() => void loadDashboard());
     return () => data.subscription.unsubscribe();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    if (dashboard) void loadFinance();
+  }, [dashboard, loadFinance]);
 
   const runOrderAction = useCallback(
     async (orderId: string, action: () => Promise<unknown>) => {
@@ -110,14 +159,14 @@ function AdminPage() {
       setError(null);
       try {
         await action();
-        await loadDashboard();
+        await Promise.all([loadDashboard(), loadFinance()]);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Não foi possível atualizar o pedido.");
       } finally {
         setWorkingOrderId(null);
       }
     },
-    [loadDashboard],
+    [loadDashboard, loadFinance],
   );
 
   if (loading && !dashboard) {
@@ -148,14 +197,16 @@ function AdminPage() {
           <div className="flex items-center gap-4">
             <BrandLogo asLink={false} />
             <Badge variant="outline" className="gap-1.5 rounded-full">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Admin
+              <ShieldCheck className="h-3.5 w-3.5" /> Admin
             </Badge>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => void loadDashboard()}>
-              <RefreshCw className="h-4 w-4" />
-              Atualizar
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void Promise.all([loadDashboard(), loadFinance()])}
+            >
+              <RefreshCw className="h-4 w-4" /> Atualizar
             </Button>
             <Button
               variant="ghost"
@@ -163,19 +214,19 @@ function AdminPage() {
               onClick={async () => {
                 await supabase.auth.signOut({ scope: "local" });
                 setDashboard(null);
+                setFinance(null);
               }}
             >
-              <LogOut className="h-4 w-4" />
-              Sair
+              <LogOut className="h-4 w-4" /> Sair
             </Button>
           </div>
         </header>
 
         <section className="pt-4 pb-7">
           <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">QUASE! por dentro</p>
-          <h1 className="font-display mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Pedidos e caixa.</h1>
+          <h1 className="font-display mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">O que importa agora.</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Pedido feito não é dinheiro disponível. O caixa só reconhece a venda depois da confirmação do Pix.
+            Faturamento do período e quanto já pode sair da QUASE! para você sem misturar o histórico antigo.
           </p>
         </section>
 
@@ -185,8 +236,17 @@ function AdminPage() {
           </div>
         ) : null}
 
-        <FinancialSummary dashboard={dashboard} />
-        <WithdrawalCard dashboard={dashboard} onDone={loadDashboard} onError={setError} />
+        <FinancePanel
+          finance={finance}
+          loading={financeLoading}
+          error={financeError}
+          period={period}
+          setPeriod={setPeriod}
+          customStart={customStart}
+          setCustomStart={setCustomStart}
+          customEnd={customEnd}
+          setCustomEnd={setCustomEnd}
+        />
 
         <section className="mt-10">
           <div className="mb-4 flex items-end justify-between gap-3">
@@ -194,7 +254,7 @@ function AdminPage() {
               <p className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Operação</p>
               <h2 className="font-display mt-1 text-3xl font-semibold">Pedidos</h2>
             </div>
-            <span className="text-sm text-muted-foreground">{dashboard.orders.length} no histórico recente</span>
+            <span className="text-sm text-muted-foreground">{dashboard.orders.length} recentes</span>
           </div>
 
           <div className="grid gap-4">
@@ -218,111 +278,119 @@ function AdminPage() {
             ))}
           </div>
         </section>
-
-        <CustomersSection dashboard={dashboard} />
       </div>
     </main>
   );
 }
 
-function FinancialSummary({ dashboard }: { dashboard: Dashboard }) {
-  const cards = useMemo(
-    () => [
-      {
-        label: "Disponível para retirada",
-        value: money(dashboard.summary.availableForWithdrawalCents),
-        featured: true,
-      },
-      { label: "Saldo calculado da conta", value: money(dashboard.summary.accountBalanceCents) },
-      { label: "Reservado", value: money(dashboard.summary.activeReservesCents) },
-      { label: "Vendas pendentes", value: money(dashboard.summary.pendingSalesCents) },
-      { label: "Vendas confirmadas", value: money(dashboard.summary.salesCents) },
-      { label: "Despesas da QUASE!", value: money(dashboard.summary.businessExpensesCents) },
-      { label: "Retiradas pessoais", value: money(dashboard.summary.ownerWithdrawalsCents) },
-      { label: "Empréstimos a devolver", value: money(dashboard.summary.outstandingLoansCents) },
-    ],
-    [dashboard],
-  );
-
-  return (
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.label} className={card.featured ? "border-olive/30 bg-sage/10" : ""}>
-          <CardContent className="p-5">
-            <p className="text-xs text-muted-foreground">{card.label}</p>
-            <p className="font-display mt-2 text-2xl font-semibold">{card.value}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </section>
-  );
-}
-
-function WithdrawalCard({
-  dashboard,
-  onDone,
-  onError,
+function FinancePanel({
+  finance,
+  loading,
+  error,
+  period,
+  setPeriod,
+  customStart,
+  setCustomStart,
+  customEnd,
+  setCustomEnd,
 }: {
-  dashboard: Dashboard;
-  onDone: () => Promise<void>;
-  onError: (message: string | null) => void;
+  finance: FinanceOverview | null;
+  loading: boolean;
+  error: string | null;
+  period: PeriodKey;
+  setPeriod: (value: PeriodKey) => void;
+  customStart: string;
+  setCustomStart: (value: string) => void;
+  customEnd: string;
+  setCustomEnd: (value: string) => void;
 }) {
-  const [amount, setAmount] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const amountCents = Math.round(Number(amount.replace(",", ".")) * 100);
-  const valid =
-    Number.isFinite(amountCents) &&
-    amountCents > 0 &&
-    amountCents <= Math.max(0, dashboard.summary.availableForWithdrawalCents);
-
   return (
-    <Card className="mt-4 border-dashed">
-      <CardContent className="grid gap-5 p-5 md:grid-cols-[1fr_auto] md:items-end">
+    <section>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <PiggyBank className="h-5 w-5 text-olive" />
-            <h2 className="font-display text-xl font-semibold">Retirada da proprietária</h2>
-          </div>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Transfira o valor da conta da QUASE! para sua conta pessoal e registre a retirada aqui. O sistema bloqueia valores que invadam as reservas do negócio.
-          </p>
+          <p className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Financeiro</p>
+          <h2 className="font-display mt-1 text-3xl font-semibold">Resumo</h2>
         </div>
-        <div className="flex w-full gap-2 md:w-auto">
-          <Input
-            inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="0,00"
-            className="h-10 w-32 rounded-xl"
-          />
+        <div className="flex flex-wrap gap-2">
+          {(["today", "7d", "30d", "all"] as const).map((value) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={period === value ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => setPeriod(value)}
+            >
+              {value === "today" ? "Hoje" : value === "7d" ? "7 dias" : value === "30d" ? "30 dias" : "Tudo"}
+            </Button>
+          ))}
           <Button
-            disabled={!valid || saving}
+            type="button"
+            size="sm"
+            variant={period === "custom" ? "default" : "outline"}
             className="rounded-full"
-            onClick={async () => {
-              setSaving(true);
-              onError(null);
-              try {
-                await registerOwnerWithdrawal({
-                  data: {
-                    amountCents,
-                    description: "Retirada da proprietária",
-                  },
-                });
-                setAmount("");
-                await onDone();
-              } catch (err) {
-                onError(err instanceof Error ? err.message : "Não foi possível registrar a retirada.");
-              } finally {
-                setSaving(false);
-              }
-            }}
+            onClick={() => setPeriod("custom")}
           >
-            {saving ? "Registrando…" : "Registrar retirada"}
+            Personalizado
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {period === "custom" ? (
+        <div className="mb-4 flex flex-wrap gap-3 rounded-2xl border border-border/70 bg-card p-4">
+          <label className="text-xs text-muted-foreground">
+            De
+            <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="mt-1" />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            Até
+            <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="mt-1" />
+          </label>
+        </div>
+      ) : null}
+
+      {error ? (
+        <div className="mb-4 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Faturamento no período</p>
+            <p className="font-display mt-2 text-4xl font-semibold">{finance ? money(finance.revenueCents) : "—"}</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Só entra venda com pagamento confirmado.
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-olive/30 bg-sage/10">
+          <CardContent className="p-6">
+            <p className="text-sm text-muted-foreground">Disponível para retirar agora</p>
+            <p className="font-display mt-2 text-4xl font-semibold">
+              {finance ? money(finance.availableForWithdrawalCents) : "—"}
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              É o dinheiro livre da QUASE! que pode virar dinheiro pessoal.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted/40 px-4 py-3 text-sm">
+        <span className="text-muted-foreground">Despesas da QUASE! no período</span>
+        <strong>{finance ? money(finance.expensesCents) : "—"}</strong>
+      </div>
+
+      {finance ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Nova verdade financeira válida desde {new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Recife" }).format(new Date(finance.reportingStartAt))}.
+        </p>
+      ) : loading ? (
+        <p className="mt-2 text-xs text-muted-foreground">Atualizando financeiro…</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -384,8 +452,7 @@ function OrderCard({
         <div className="flex min-w-52 flex-col gap-3">
           {pending ? (
             <Button disabled={working} onClick={onConfirmPayment} className="rounded-full">
-              <WalletCards className="h-4 w-4" />
-              Pix recebido
+              <WalletCards className="h-4 w-4" /> Pix recebido
             </Button>
           ) : paid ? (
             <Button disabled={working} variant="outline" onClick={onReopenPayment} className="rounded-full">
@@ -401,9 +468,7 @@ function OrderCard({
             value={order.status}
             disabled={working}
             onChange={(event) =>
-              onStatusChange(
-                event.target.value as "new" | "confirmed" | "preparing" | "delivered" | "cancelled",
-              )
+              onStatusChange(event.target.value as "new" | "confirmed" | "preparing" | "delivered" | "cancelled")
             }
             className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
           >
@@ -414,44 +479,6 @@ function OrderCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function CustomersSection({ dashboard }: { dashboard: Dashboard }) {
-  return (
-    <section className="mt-12">
-      <div className="mb-4">
-        <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-olive" />
-          <p className="text-[11px] tracking-[0.14em] text-muted-foreground uppercase">Clientes + recompra</p>
-        </div>
-        <h2 className="font-display mt-1 text-3xl font-semibold">Quem está voltando.</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Agrupado por apartamento; retiradas ficam agrupadas pelo nome.</p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {dashboard.customers.map((customer) => (
-          <Card key={customer.key}>
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium">{customer.customerName}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{customer.unitKey ?? "Retirada"}</p>
-                </div>
-                <Badge variant="outline" className="rounded-full">{customer.ordersCount}×</Badge>
-              </div>
-              <div className="mt-4 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Comprou</p>
-                  <p className="font-display text-xl font-semibold">{money(customer.totalSpentCents)}</p>
-                </div>
-                <p className="text-right text-xs text-muted-foreground">Último<br />{dateTime(customer.lastOrderAt)}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -495,14 +522,14 @@ function AdminLogin({
             </Badge>
             <CardTitle className="font-display text-3xl">Admin QUASE!</CardTitle>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              O acesso é por link enviado ao e-mail autorizado. Sem senha para esquecer e sem dados financeiros expostos no navegador.
+              Acesso por link enviado ao e-mail autorizado.
             </p>
           </CardHeader>
           <CardContent>
             {denied ? (
               <div className="space-y-4">
                 <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm">
-                  Esta conta está autenticada, mas ainda não foi autorizada como administradora.
+                  Esta conta está autenticada, mas não tem acesso administrativo.
                 </div>
                 <Button
                   variant="outline"
@@ -528,6 +555,7 @@ function AdminLogin({
                     email,
                     options: {
                       emailRedirectTo: `${window.location.origin}/admin`,
+                      shouldCreateUser: false,
                     },
                   });
 
@@ -555,9 +583,7 @@ function AdminLogin({
                 <Button type="submit" disabled={sending} className="w-full rounded-full">
                   {sending ? "Enviando…" : "Receber link de acesso"}
                 </Button>
-                {sent ? (
-                  <p className="text-sm text-olive">Link enviado. Abra o e-mail neste dispositivo para entrar.</p>
-                ) : null}
+                {sent ? <p className="text-sm text-olive">Link enviado. Abra o e-mail neste dispositivo.</p> : null}
                 {loginError || error ? <p className="text-sm text-destructive">{loginError ?? error}</p> : null}
               </form>
             )}
