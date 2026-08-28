@@ -50,9 +50,9 @@ export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
   "acai-500": { available: true },
 
   // Açaí — frutas
-  "acai-fruta-morango": { available: true, maxPortions: 1, badge: null },
+  "acai-fruta-morango": { available: false, maxPortions: 1, badge: null },
   "acai-fruta-banana": { available: true, badge: null },
-  "acai-fruta-uva": { available: true, badge: null },
+  "acai-fruta-uva": { available: false, badge: null },
   "acai-fruta-melancia": { available: false, badge: null },
   "acai-fruta-melao": { available: false, badge: null },
   "acai-fruta-mamao": { available: false, badge: null },
@@ -69,7 +69,7 @@ export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
   "acai-amendoim": { available: true },
   "acai-jujuba": { available: true },
   "acai-farinha-lactea": { available: false },
-  "acai-pacoca": { available: true },
+  "acai-pacoca": { available: false },
   "acai-maria-mole": { available: true },
   "acai-mms": { available: true },
   "acai-gotas-chocolate": { available: true },
