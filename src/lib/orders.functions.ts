@@ -1,5 +1,9 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+
+import type { Database } from "@/integrations/supabase/types";
+import type { OperationalProductId } from "@/lib/operational-types";
 
 const selectionSchema = z.object({
   categoryId: z.string(),
@@ -31,6 +35,44 @@ const orderSchema = z.object({
     .max(50),
 });
 
+const PRODUCT_OPERATIONAL_ID: Record<string, OperationalProductId> = {
+  "pronto-salada-folhas": "salad",
+  "pronto-sanduiche-frango": "sandwich",
+  "pronto-salada-frutas": "fruitSalad",
+  "mini-salada-hoje": "miniSalad",
+  "acai-puro-200": "miniAcai",
+  "montado-acai": "acai",
+  "acai-dia-dos-pais": "acai",
+};
+
+async function assertOperationalAvailability(
+  supabaseAdmin: SupabaseClient<Database>,
+  items: z.infer<typeof orderSchema>["items"],
+) {
+  const { data: rows, error } = await supabaseAdmin
+    .from("operational_availability")
+    .select("entity_type, entity_id, available");
+
+  if (error || !rows) throw new Error("Não foi possível validar a disponibilidade do pedido.");
+
+  const lookup = new Map(rows.map((row) => [`${row.entity_type}:${row.entity_id}`, row.available]));
+  if (lookup.get("store:store") !== true) throw new Error("A loja acabou de fechar. Atualize a página antes de pedir.");
+
+  for (const item of items) {
+    if (!item.productId) throw new Error("Produto sem identificação operacional.");
+    const operationalProductId = PRODUCT_OPERATIONAL_ID[item.productId];
+    if (!operationalProductId || lookup.get(`product:${operationalProductId}`) !== true) {
+      throw new Error(`${item.productName} não está mais disponível. Atualize o carrinho.`);
+    }
+
+    for (const selection of item.selections) {
+      if (lookup.get(`ingredient:${selection.ingredientId}`) !== true) {
+        throw new Error(`${selection.name} não está mais disponível. Atualize o carrinho.`);
+      }
+    }
+  }
+}
+
 export const saveOrder = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => orderSchema.parse(input))
   .handler(async ({ data }) => {
@@ -43,10 +85,9 @@ export const saveOrder = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing.data) return { ok: true as const, orderId: existing.data.id };
 
-    const subtotalCents = data.items.reduce(
-      (sum, item) => sum + item.unitPriceCents * item.quantity,
-      0,
-    );
+    await assertOperationalAvailability(supabaseAdmin, data.items);
+
+    const subtotalCents = data.items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0);
 
     const { data: order, error } = await supabaseAdmin
       .from("orders")
@@ -83,7 +124,6 @@ export const saveOrder = createServerFn({ method: "POST" })
       throw new Error("Não foi possível salvar os itens do pedido.");
     }
 
-    // O pedido nasce como venda pendente: só vira dinheiro disponível quando o Pix for confirmado.
     const { error: financeError } = await supabaseAdmin.from("financial_transactions").insert({
       type: "sale",
       amount_cents: subtotalCents,
@@ -95,9 +135,7 @@ export const saveOrder = createServerFn({ method: "POST" })
       account_scope: "business",
       metadata: { unit_key: `${data.block}-${data.apartment}` } as never,
     });
-    if (financeError && financeError.code !== "23505") {
-      console.error("[finance] falha ao registrar venda", financeError);
-    }
+    if (financeError && financeError.code !== "23505") console.error("[finance] falha ao registrar venda", financeError);
 
     return { ok: true as const, orderId: order.id };
   });
