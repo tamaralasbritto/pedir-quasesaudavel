@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import type { OperationalDatabase, OperationalProductId } from "@/lib/operational-types";
+import type { Database } from "@/integrations/supabase/types";
+import type { OperationalProductId } from "@/lib/operational-types";
 
 const selectionSchema = z.object({
   categoryId: z.string(),
@@ -45,13 +46,12 @@ const PRODUCT_OPERATIONAL_ID: Record<string, OperationalProductId> = {
 };
 
 async function assertOperationalAvailability(
-  supabaseAdmin: unknown,
+  supabaseAdmin: SupabaseClient<Database>,
   items: z.infer<typeof orderSchema>["items"],
 ) {
-  const db = supabaseAdmin as SupabaseClient<OperationalDatabase>;
-  const { data: rows, error } = await db
+  const { data: rows, error } = await supabaseAdmin
     .from("operational_availability")
-    .select("entity_type, entity_id, available, updated_at");
+    .select("entity_type, entity_id, available");
 
   if (error || !rows) throw new Error("Não foi possível validar a disponibilidade do pedido.");
 
