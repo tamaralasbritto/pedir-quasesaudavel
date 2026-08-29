@@ -1,9 +1,7 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireAdmin } from "@/lib/admin-auth";
-import type { OperationalDatabase } from "@/lib/operational-types";
 
 const updateSchema = z.object({
   entityType: z.enum(["store", "product", "ingredient"]),
@@ -20,9 +18,8 @@ export const updateOperationalAvailability = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => updateSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as unknown as SupabaseClient<OperationalDatabase>;
 
-    const { data: updated, error } = await db
+    const { data: updated, error } = await supabaseAdmin
       .from("operational_availability")
       .update({ available: data.available, updated_at: new Date().toISOString() })
       .eq("entity_type", data.entityType)
