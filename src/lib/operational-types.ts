@@ -1,12 +1,6 @@
 export type OperationalEntityType = "store" | "product" | "ingredient";
 
-export type OperationalProductId =
-  | "miniSalad"
-  | "salad"
-  | "acai"
-  | "miniAcai"
-  | "fruitSalad"
-  | "sandwich";
+export type OperationalProductId = "salad" | "acai" | "fruitSalad" | "sandwich";
 
 export interface OperationalAvailabilityRow {
   entity_type: OperationalEntityType;
@@ -15,14 +9,15 @@ export interface OperationalAvailabilityRow {
   updated_at: string;
 }
 
+export const PURE_ACAI_SIZE_ID = "acai-200";
+
 export const OPERATIONAL_PRODUCTS: ReadonlyArray<{
   id: OperationalProductId;
   label: string;
+  kind: "salada-folhas" | "acai" | "salada-frutas" | "sanduiche-natural";
 }> = [
-  { id: "acai", label: "Açaí" },
-  { id: "miniAcai", label: "Mini açaí 200 ml" },
-  { id: "miniSalad", label: "Mini salada" },
-  { id: "salad", label: "Salada" },
-  { id: "fruitSalad", label: "Salada de frutas" },
-  { id: "sandwich", label: "Sanduíche natural" },
+  { id: "acai", label: "Açaí", kind: "acai" },
+  { id: "salad", label: "Salada", kind: "salada-folhas" },
+  { id: "fruitSalad", label: "Salada de frutas", kind: "salada-frutas" },
+  { id: "sandwich", label: "Sanduíche natural", kind: "sanduiche-natural" },
 ];
