@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import type { Database } from "@/integrations/supabase/types";
-import type { OperationalProductId } from "@/lib/operational-types";
+import { PURE_ACAI_SIZE_ID, type OperationalProductId } from "@/lib/operational-types";
 
 const selectionSchema = z.object({
   categoryId: z.string(),
@@ -39,10 +39,15 @@ const PRODUCT_OPERATIONAL_ID: Record<string, OperationalProductId> = {
   "pronto-salada-folhas": "salad",
   "pronto-sanduiche-frango": "sandwich",
   "pronto-salada-frutas": "fruitSalad",
-  "mini-salada-hoje": "miniSalad",
-  "acai-puro-200": "miniAcai",
+  "mini-salada-hoje": "salad",
+  "acai-puro-200": "acai",
   "montado-acai": "acai",
   "acai-dia-dos-pais": "acai",
+};
+
+const PRODUCT_REQUIRED_INGREDIENT_ID: Record<string, string> = {
+  "mini-salada-hoje": "salada-300",
+  "acai-puro-200": PURE_ACAI_SIZE_ID,
 };
 
 async function assertOperationalAvailability(
@@ -63,6 +68,11 @@ async function assertOperationalAvailability(
     const operationalProductId = PRODUCT_OPERATIONAL_ID[item.productId];
     if (!operationalProductId || lookup.get(`product:${operationalProductId}`) !== true) {
       throw new Error(`${item.productName} não está mais disponível. Atualize o carrinho.`);
+    }
+
+    const requiredIngredientId = PRODUCT_REQUIRED_INGREDIENT_ID[item.productId];
+    if (requiredIngredientId && lookup.get(`ingredient:${requiredIngredientId}`) !== true) {
+      throw new Error(`${item.productName} não está mais disponível nesse tamanho. Atualize o carrinho.`);
     }
 
     for (const selection of item.selections) {
