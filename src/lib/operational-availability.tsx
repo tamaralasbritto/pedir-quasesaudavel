@@ -73,18 +73,25 @@ export function OperationalAvailabilityProvider({ children }: { children: ReactN
         "postgres_changes",
         { event: "*", schema: "public", table: "operational_availability" },
         (payload) => {
-          const next = payload.new as OperationalAvailabilityRow;
-          if (!next?.entity_type || !next?.entity_id) {
+          const next = payload.new as Partial<OperationalAvailabilityRow>;
+          if (
+            !next.entity_type ||
+            !next.entity_id ||
+            typeof next.available !== "boolean" ||
+            !next.updated_at
+          ) {
             void refresh();
             return;
           }
+
+          const nextRow = next as OperationalAvailabilityRow;
           setRows((current) => {
             const index = current.findIndex(
-              (row) => row.entity_type === next.entity_type && row.entity_id === next.entity_id,
+              (row) => row.entity_type === nextRow.entity_type && row.entity_id === nextRow.entity_id,
             );
-            if (index < 0) return [...current, next];
+            if (index < 0) return [...current, nextRow];
             const copy = [...current];
-            copy[index] = next;
+            copy[index] = nextRow;
             return copy;
           });
         },
@@ -111,8 +118,12 @@ export function OperationalAvailabilityProvider({ children }: { children: ReactN
           updated_at: new Date().toISOString(),
         };
         if (index < 0) return [...current, nextRow];
+
+        const existing = current[index];
+        if (!existing) return [...current, nextRow];
+
         const copy = [...current];
-        copy[index] = { ...copy[index], available, updated_at: nextRow.updated_at };
+        copy[index] = { ...existing, available, updated_at: nextRow.updated_at };
         return copy;
       });
     },
