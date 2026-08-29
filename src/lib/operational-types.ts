@@ -1,3 +1,5 @@
+import type { Database } from "@/integrations/supabase/types";
+
 export type OperationalEntityType = "store" | "product" | "ingredient";
 
 export type OperationalProductId =
@@ -15,33 +17,33 @@ export interface OperationalAvailabilityRow {
   updated_at: string;
 }
 
-export type OperationalDatabase = {
-  __InternalSupabase: {
-    PostgrestVersion: "14.5";
+type OperationalAvailabilityTable = {
+  Row: OperationalAvailabilityRow;
+  Insert: {
+    entity_type: OperationalEntityType;
+    entity_id: string;
+    available: boolean;
+    updated_at?: string;
   };
-  public: {
-    Tables: {
-      operational_availability: {
-        Row: OperationalAvailabilityRow;
-        Insert: {
-          entity_type: OperationalEntityType;
-          entity_id: string;
-          available: boolean;
-          updated_at?: string;
-        };
-        Update: {
-          entity_type?: OperationalEntityType;
-          entity_id?: string;
-          available?: boolean;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+  Update: {
+    entity_type?: OperationalEntityType;
+    entity_id?: string;
+    available?: boolean;
+    updated_at?: string;
+  };
+  Relationships: [];
+};
+
+/**
+ * Extende os tipos gerados pelo Supabase sem manter uma segunda cópia do schema.
+ * A tabela operacional foi criada depois da última geração automática de types.
+ * Quando os types forem regenerados, este alias pode voltar a usar Database diretamente.
+ */
+export type OperationalDatabase = Omit<Database, "public"> & {
+  public: Omit<Database["public"], "Tables"> & {
+    Tables: Database["public"]["Tables"] & {
+      operational_availability: OperationalAvailabilityTable;
     };
-    Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
-    Enums: { [_ in never]: never };
-    CompositeTypes: { [_ in never]: never };
   };
 };
 
