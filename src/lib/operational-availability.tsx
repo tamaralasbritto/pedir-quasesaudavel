@@ -1,10 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import type {
   OperationalAvailabilityRow,
-  OperationalDatabase,
   OperationalEntityType,
   OperationalProductId,
 } from "@/lib/operational-types";
@@ -24,8 +22,6 @@ type OperationalAvailabilityContextValue = {
 };
 
 const OperationalAvailabilityContext = createContext<OperationalAvailabilityContextValue | null>(null);
-
-const operationalSupabase = supabase as unknown as SupabaseClient<OperationalDatabase>;
 
 function reduceRows(rows: OperationalAvailabilityRow[]) {
   let storeOpen = false;
@@ -48,7 +44,7 @@ export function OperationalAvailabilityProvider({ children }: { children: ReactN
 
   const refresh = useCallback(async () => {
     setError(null);
-    const { data, error: queryError } = await operationalSupabase
+    const { data, error: queryError } = await supabase
       .from("operational_availability")
       .select("entity_type, entity_id, available, updated_at")
       .order("entity_type")
@@ -60,14 +56,14 @@ export function OperationalAvailabilityProvider({ children }: { children: ReactN
       return;
     }
 
-    setRows(data ?? []);
+    setRows((data ?? []) as OperationalAvailabilityRow[]);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     void refresh();
 
-    const channel = operationalSupabase
+    const channel = supabase
       .channel("operational-availability")
       .on(
         "postgres_changes",
@@ -99,7 +95,7 @@ export function OperationalAvailabilityProvider({ children }: { children: ReactN
       .subscribe();
 
     return () => {
-      void operationalSupabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [refresh]);
 
