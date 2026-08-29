@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { ProductCard } from "@/components/ProductCard";
-import { STORE_CONFIG } from "@/config/store";
 import { products } from "@/data/products";
+import { useOperationalAvailability } from "@/lib/operational-availability";
 
 export const Route = createFileRoute("/prontos")({
   head: () => ({
@@ -15,10 +15,11 @@ export const Route = createFileRoute("/prontos")({
 });
 
 function ProntosPage() {
+  const { isProductAvailable } = useOperationalAvailability();
   const enabledProducts = products.filter((product) => {
-    if (product.kind === "sanduiche-natural") return STORE_CONFIG.products.sandwich;
-    if (product.kind === "salada-folhas") return STORE_CONFIG.products.salad;
-    if (product.kind === "salada-frutas") return STORE_CONFIG.products.fruitSalad;
+    if (product.kind === "sanduiche-natural") return isProductAvailable("sandwich");
+    if (product.kind === "salada-folhas") return isProductAvailable("salad");
+    if (product.kind === "salada-frutas") return isProductAvailable("fruitSalad");
     return false;
   });
 
@@ -27,10 +28,9 @@ function ProntosPage() {
       <PageHeader title="Prontos para você" subtitle="Preparados para pedir" />
       <main className="mx-auto max-w-3xl space-y-5 px-5 pt-6">
         <div className="grid gap-5 sm:grid-cols-2">
-          {enabledProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+          {enabledProducts.map((product) => <ProductCard key={product.id} product={product} />)}
         </div>
+        {!enabledProducts.length ? <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma opção pronta disponível agora.</p> : null}
       </main>
     </div>
   );

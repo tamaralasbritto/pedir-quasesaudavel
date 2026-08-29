@@ -7,14 +7,13 @@ export interface IngredientAvailability {
 }
 
 /**
- * Central operacional de disponibilidade.
+ * Metadados/regras estáticas de ingredientes.
  *
- * Use este arquivo para ligar/desligar ingredientes, adicionar selos temporários
- * e limitar quantas porções do mesmo ingrediente podem ser escolhidas.
- * Campos omitidos preservam o valor padrão cadastrado em data/ingredients.ts.
+ * O estado operacional de disponibilidade agora vive no Supabase.
+ * Os campos `available` abaixo são mantidos apenas como registro da migração
+ * e não participam mais da decisão de venda em runtime.
  */
 export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
-  // Saladas — ingredientes
   "comp-alface": { available: false },
   "comp-cebola-roxa": { available: false },
   "comp-pepino": { available: false },
@@ -26,43 +25,29 @@ export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
   "comp-tomate-cereja": { available: false },
   "comp-rucula": { available: false },
   "comp-brocolis": { available: false },
-
-  // Saladas — proteínas
   "prot-frango-desfiado": { available: false },
   "prot-ovo": { available: false },
   "prot-soja": { available: false },
-
-  // Saladas — molhos
   "molho-creme-milho": { available: false },
   "molho-iogurte-ervas": { available: false },
   "molho-vinagrete-classico": { available: false },
   "molho-mostarda-mel": { available: false },
-
-  // Saladas — extras
   "extra-croutons": { available: false },
   "extra-queijo-parmesao": { available: false },
   "extra-castanhas": { available: false },
   "extra-sementes": { available: false },
-
-  // Açaí — tamanhos
   "acai-300": { available: true },
   "acai-400": { available: true },
   "acai-500": { available: true },
-
-  // Açaí — frutas
   "acai-fruta-morango": { available: false, maxPortions: 1, badge: null },
   "acai-fruta-banana": { available: true, badge: null },
   "acai-fruta-uva": { available: false, badge: null },
   "acai-fruta-melancia": { available: false, badge: null },
   "acai-fruta-melao": { available: false, badge: null },
   "acai-fruta-mamao": { available: false, badge: null },
-
-  // Açaí — caldas
   "calda-morango": { available: true },
   "calda-leite-condensado": { available: true },
   "calda-chocolate": { available: true },
-
-  // Açaí — complementos
   "acai-leite-po": { available: true },
   "acai-sucrilhos": { available: true },
   "acai-cereal-nescau": { available: true },
@@ -75,8 +60,6 @@ export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
   "acai-gotas-chocolate": { available: true },
   "acai-canudinho": { available: false },
   "acai-granola": { available: true },
-
-  // Salada de frutas — indisponível hoje
   "sf-banana": { available: false },
   "sf-melao": { available: false },
   "sf-mamao": { available: false },
@@ -91,21 +74,17 @@ export const INGREDIENT_AVAILABILITY: Record<string, IngredientAvailability> = {
   "sf-leite-po": { available: false },
 };
 
-export const getIngredientAvailability = (ingredientId: string) =>
-  INGREDIENT_AVAILABILITY[ingredientId];
-
-export const getIngredientMaxPortions = (ingredientId: string) =>
-  INGREDIENT_AVAILABILITY[ingredientId]?.maxPortions;
+export const getIngredientAvailability = (ingredientId: string) => INGREDIENT_AVAILABILITY[ingredientId];
+export const getIngredientMaxPortions = (ingredientId: string) => INGREDIENT_AVAILABILITY[ingredientId]?.maxPortions;
 
 export const applyIngredientAvailability = (ingredient: Ingredient): Ingredient => {
   const config = getIngredientAvailability(ingredient.id);
-  if (!config) return ingredient;
+  if (!config) return { ...ingredient, available: true };
 
   const badge = config.badge === null ? undefined : (config.badge ?? ingredient.badge);
-
   return {
     ...ingredient,
-    available: config.available ?? ingredient.available,
+    available: true,
     ...(badge === undefined ? {} : { badge }),
   };
 };

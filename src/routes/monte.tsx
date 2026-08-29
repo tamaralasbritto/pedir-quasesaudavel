@@ -12,9 +12,6 @@ export const Route = createFileRoute("/monte")({
 });
 
 function MenuRedirect() {
-  if (STORE_CONFIG.activeCampaign === "dia-dos-pais") {
-    return <Navigate to="/dia-dos-pais" replace />;
-  }
-
+  if (STORE_CONFIG.activeCampaign === "dia-dos-pais") return <Navigate to="/acai" replace />;
   return <Navigate to="/prontos" replace />;
 }
