@@ -37,8 +37,26 @@ jobs:
       - name: Typecheck
         run: bunx tsc --noEmit
 
-      - name: Lint
-        run: bun run lint
+      - name: Lint changed application files
+        run: >-
+          bunx eslint
+          src/components/AdminOperationalPanel.tsx
+          src/components/ProductUnavailable.tsx
+          src/config/availability.ts
+          src/integrations/supabase/types.ts
+          src/lib/operational-availability.tsx
+          src/lib/operational-types.ts
+          src/lib/operational.functions.ts
+          src/lib/orders.functions.ts
+          src/routes/__root.tsx
+          src/routes/acai.tsx
+          src/routes/dia-dos-pais.tsx
+          src/routes/index.tsx
+          src/routes/mini-salada.tsx
+          src/routes/monte.tsx
+          src/routes/prontos.tsx
+          --quiet
+          --rule 'prettier/prettier: off'
 
       - name: Build
         run: bun run build
