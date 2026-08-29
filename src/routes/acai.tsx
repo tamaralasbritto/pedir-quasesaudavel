@@ -96,8 +96,6 @@ function AcaiPage() {
     });
   }, [fathersDay, isIngredientAvailable, miniAcaiAvailable, regularAcaiAvailable]);
 
-  if (!regularAcaiAvailable && !miniAcaiAvailable) return <ProductUnavailable name="Açaí" />;
-
   const selectedSize = selected["tamanho-acai"]?.[0];
   const isPureAcai = selectedSize === PURE_ACAI_ID;
   const current = categories[step];
@@ -136,6 +134,8 @@ function AcaiPage() {
     );
     return sumNutrition(values as Nutrition[]);
   }, [categories, selected]);
+
+  if (!regularAcaiAvailable && !miniAcaiAvailable) return <ProductUnavailable name="Açaí" />;
 
   const total = chosen.reduce((sum, item) => sum + item.price, 0);
   const stepValid = isPureAcai && step === 0
