@@ -12,6 +12,7 @@ import { useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/format";
 import { sumNutrition } from "@/lib/nutrition";
 import { useOperationalAvailability } from "@/lib/operational-availability";
+import { PURE_ACAI_SIZE_ID } from "@/lib/operational-types";
 import { cn } from "@/lib/utils";
 import type { CartItemSelection, Ingredient, IngredientCategory, Nutrition } from "@/types";
 
@@ -33,7 +34,6 @@ const LIMITS: Record<string, Partial<Record<string, number>>> = {
 };
 
 const REPEATABLE = ["frutas", "caldas", "acompanhamentos"];
-const PURE_ACAI_ID = "acai-200-puro";
 
 function AcaiPage() {
   const [step, setStep] = useState(0);
@@ -42,8 +42,8 @@ function AcaiPage() {
   const { addItem, count } = useCart();
   const { isProductAvailable, isIngredientAvailable } = useOperationalAvailability();
   const fathersDay = STORE_CONFIG.activeCampaign === "dia-dos-pais";
-  const regularAcaiAvailable = isProductAvailable("acai");
-  const miniAcaiAvailable = isProductAvailable("miniAcai");
+  const acaiAvailable = isProductAvailable("acai");
+  const pureAcaiAvailable = isIngredientAvailable(PURE_ACAI_SIZE_ID);
 
   const categories = useMemo(() => {
     return categoriesForKind("acai").map((category) => {
@@ -54,22 +54,21 @@ function AcaiPage() {
 
       if (category.id !== "tamanho-acai") return baseCategory;
 
-      const regularSizes = regularAcaiAvailable ? baseCategory.ingredients : [];
-      const sizes = miniAcaiAvailable
+      const sizes = pureAcaiAvailable
         ? [
             {
-              id: PURE_ACAI_ID,
+              id: PURE_ACAI_SIZE_ID,
               name: "200 ml — só açaí",
               portion: "Sem frutas, caldas ou complementos",
               price: 6,
               nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
               available: true,
             },
-            ...regularSizes,
+            ...baseCategory.ingredients,
           ]
-        : regularSizes;
+        : baseCategory.ingredients;
 
-      if (!fathersDay || !regularAcaiAvailable) {
+      if (!fathersDay) {
         return {
           ...baseCategory,
           helper: "Escolha o tamanho. O pote de 200 ml vem só com o sorvete de açaí, sem acompanhamentos.",
@@ -82,26 +81,31 @@ function AcaiPage() {
         helper: "Escolha seu tamanho. Hoje tem edição especial de Dia dos Pais.",
         ingredients: [
           ...sizes,
-          {
-            id: "acai-750-pais",
-            name: "750 ml — Especial Dia dos Pais",
-            portion: "3 frutas · 3 caldas · 10 complementos",
-            price: 25,
-            badge: "Só hoje",
-            nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
-            available: true,
-          },
+          ...(isIngredientAvailable("acai-750-pais")
+            ? [
+                {
+                  id: "acai-750-pais",
+                  name: "750 ml — Especial Dia dos Pais",
+                  portion: "3 frutas · 3 caldas · 10 complementos",
+                  price: 25,
+                  badge: "Só hoje",
+                  nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+                  available: true,
+                },
+              ]
+            : []),
         ],
       };
     });
-  }, [fathersDay, isIngredientAvailable, miniAcaiAvailable, regularAcaiAvailable]);
+  }, [fathersDay, isIngredientAvailable, pureAcaiAvailable]);
 
   const selectedSize = selected["tamanho-acai"]?.[0];
-  const isPureAcai = selectedSize === PURE_ACAI_ID;
+  const isPureAcai = selectedSize === PURE_ACAI_SIZE_ID;
   const current = categories[step];
   const currentLimit = current && selectedSize ? LIMITS[selectedSize]?.[current.id] : undefined;
   const currentCount = current ? (selected[current.id] ?? []).length : 0;
   const isFruitStep = current?.id === "frutas";
+  const hasAvailableSize = (categories.find((category) => category.id === "tamanho-acai")?.ingredients.length ?? 0) > 0;
 
   const chosen: CartItemSelection[] = useMemo(() => {
     const result: CartItemSelection[] = [];
@@ -135,7 +139,7 @@ function AcaiPage() {
     return sumNutrition(values as Nutrition[]);
   }, [categories, selected]);
 
-  if (!regularAcaiAvailable && !miniAcaiAvailable) return <ProductUnavailable name="Açaí" />;
+  if (!acaiAvailable || !hasAvailableSize) return <ProductUnavailable name="Açaí" />;
 
   const total = chosen.reduce((sum, item) => sum + item.price, 0);
   const stepValid = isPureAcai && step === 0
