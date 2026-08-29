@@ -151,6 +151,27 @@ export type Database = {
           },
         ]
       }
+      operational_availability: {
+        Row: {
+          available: boolean
+          entity_id: string
+          entity_type: string
+          updated_at: string
+        }
+        Insert: {
+          available: boolean
+          entity_id: string
+          entity_type: string
+          updated_at?: string
+        }
+        Update: {
+          available?: boolean
+          entity_id?: string
+          entity_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
