@@ -17,16 +17,16 @@ export const Route = createFileRoute("/")({
 });
 
 function Home() {
-  const { isProductAvailable } = useOperationalAvailability();
+  const { isProductAvailable, isIngredientAvailable } = useOperationalAvailability();
+  const saladRoute = isIngredientAvailable("salada-300") ? "/mini-salada" as const : "/prontos" as const;
   const options = [
-    { id: "acai", emoji: "🍧", label: "Açaí", to: "/acai" as const, available: isProductAvailable("acai") || isProductAvailable("miniAcai") },
-    { id: "miniSalad", emoji: "🥗", label: "Mini salada", to: "/mini-salada" as const, available: isProductAvailable("miniSalad") },
-    { id: "salad", emoji: "🥗", label: "Salada", to: "/prontos" as const, available: isProductAvailable("salad") },
+    { id: "acai", emoji: "🍧", label: "Açaí", to: "/acai" as const, available: isProductAvailable("acai") },
+    { id: "salad", emoji: "🥗", label: "Salada", to: saladRoute, available: isProductAvailable("salad") },
     { id: "fruitSalad", emoji: "🍓", label: "Salada de frutas", to: "/prontos" as const, available: isProductAvailable("fruitSalad") },
     { id: "sandwich", emoji: "🥪", label: "Sanduíche natural", to: "/prontos" as const, available: isProductAvailable("sandwich") },
   ].filter((option) => option.available);
   const firstRoute = options[0]?.to ?? "/prontos";
-  const acaiAvailable = isProductAvailable("acai") || isProductAvailable("miniAcai");
+  const acaiAvailable = isProductAvailable("acai");
 
   return (
     <main className="min-h-screen bg-background pb-20">

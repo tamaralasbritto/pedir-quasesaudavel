@@ -19,14 +19,17 @@ export const Route = createFileRoute("/mini-salada")({
 });
 
 const PRICE = 6;
+const MINI_SALAD_SIZE_ID = "salada-300";
 
 function MiniSaladPage() {
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
   const { addItem, count } = useCart();
-  const { isProductAvailable } = useOperationalAvailability();
+  const { isProductAvailable, isIngredientAvailable } = useOperationalAvailability();
 
-  if (!isProductAvailable("miniSalad")) return <ProductUnavailable name="Mini salada" />;
+  if (!isProductAvailable("salad") || !isIngredientAvailable(MINI_SALAD_SIZE_ID)) {
+    return <ProductUnavailable name="Salada 300 ml" />;
+  }
 
   const addToCart = () => {
     addItem({
