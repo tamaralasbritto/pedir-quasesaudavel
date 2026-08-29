@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AcaiRouteImport } from './routes/acai'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as DiaDosPaisRouteImport } from './routes/dia-dos-pais'
@@ -20,6 +21,11 @@ import { Route as ProntosRouteImport } from './routes/prontos'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcaiRoute = AcaiRouteImport.update({
+  id: '/acai',
+  path: '/acai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -55,6 +61,7 @@ const ProntosRoute = ProntosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acai': typeof AcaiRoute
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/dia-dos-pais': typeof DiaDosPaisRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acai': typeof AcaiRoute
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/dia-dos-pais': typeof DiaDosPaisRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acai': typeof AcaiRoute
   '/admin': typeof AdminRoute
   '/checkout': typeof CheckoutRoute
   '/dia-dos-pais': typeof DiaDosPaisRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acai'
     | '/admin'
     | '/checkout'
     | '/dia-dos-pais'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/acai'
     | '/admin'
     | '/checkout'
     | '/dia-dos-pais'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/acai'
     | '/admin'
     | '/checkout'
     | '/dia-dos-pais'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcaiRoute: typeof AcaiRoute
   AdminRoute: typeof AdminRoute
   CheckoutRoute: typeof CheckoutRoute
   DiaDosPaisRoute: typeof DiaDosPaisRoute
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acai': {
+      id: '/acai'
+      path: '/acai'
+      fullPath: '/acai'
+      preLoaderRoute: typeof AcaiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -177,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcaiRoute: AcaiRoute,
   AdminRoute: AdminRoute,
   CheckoutRoute: CheckoutRoute,
   DiaDosPaisRoute: DiaDosPaisRoute,
