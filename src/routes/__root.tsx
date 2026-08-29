@@ -8,14 +8,17 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { Boxes, LogOut, Settings, WalletCards } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { CartProvider } from "@/lib/cart";
-import { Toaster } from "@/components/ui/sonner";
-import { OperationalAvailabilityProvider, useOperationalAvailability } from "@/lib/operational-availability";
 import { AdminOperationalPanel } from "@/components/AdminOperationalPanel";
+import { CartProvider } from "@/lib/cart";
+import { getOperationalAdminAccess } from "@/lib/operational.functions";
+import { OperationalAvailabilityProvider, useOperationalAvailability } from "@/lib/operational-availability";
+import { supabase } from "@/integrations/supabase/client";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -98,12 +101,107 @@ function ClosedStore() {
   );
 }
 
+type AdminSection = "financeiro" | "estoque" | "configuracoes";
+
+const ADMIN_NAVIGATION: ReadonlyArray<{
+  id: AdminSection;
+  label: string;
+  icon: typeof WalletCards;
+}> = [
+  { id: "financeiro", label: "Financeiro", icon: WalletCards },
+  { id: "estoque", label: "Estoque", icon: Boxes },
+  { id: "configuracoes", label: "Configurações", icon: Settings },
+];
+
+function AdminWorkspace() {
+  const [authorized, setAuthorized] = useState(false);
+  const [section, setSection] = useState<AdminSection>("financeiro");
+
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "") as AdminSection;
+    if (ADMIN_NAVIGATION.some((item) => item.id === hash)) setSection(hash);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const checkAccess = async () => {
+      try {
+        await getOperationalAdminAccess();
+        if (active) setAuthorized(true);
+      } catch {
+        if (active) setAuthorized(false);
+      }
+    };
+
+    void checkAccess();
+    const { data } = supabase.auth.onAuthStateChange(() => void checkAccess());
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (!authorized) return <Outlet />;
+
+  const selectSection = (next: AdminSection) => {
+    setSection(next);
+    window.history.replaceState(null, "", `${window.location.pathname}#${next}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <div className="min-h-screen bg-background md:grid md:grid-cols-[220px_minmax(0,1fr)]">
+      <aside className="z-50 border-b border-border bg-card md:sticky md:top-0 md:h-screen md:border-r md:border-b-0">
+        <div className="flex items-center justify-between gap-3 px-4 py-4 md:block md:px-5 md:py-6">
+          <div>
+            <p className="font-display text-xl font-semibold">QUASE!</p>
+            <p className="text-[10px] tracking-[0.14em] text-muted-foreground uppercase">Painel administrativo</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void supabase.auth.signOut({ scope: "local" })}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted md:mt-8 md:w-full md:justify-start"
+          >
+            <LogOut className="h-4 w-4" /> Sair
+          </button>
+        </div>
+
+        <nav className="flex gap-2 overflow-x-auto px-4 pb-4 md:flex-col md:px-3 md:pb-0" aria-label="Áreas do painel">
+          {ADMIN_NAVIGATION.map((item) => {
+            const Icon = item.icon;
+            const active = section === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => selectSection(item.id)}
+                aria-pressed={active}
+                className={active
+                  ? "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl bg-foreground px-4 text-sm font-medium text-background md:w-full"
+                  : "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl px-4 text-sm font-medium text-muted-foreground transition hover:bg-muted md:w-full"}
+              >
+                <Icon className="h-4 w-4" /> {item.label}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      <div className="min-w-0">
+        {section === "financeiro" ? <Outlet /> : null}
+        {section === "estoque" ? <AdminOperationalPanel view="stock" /> : null}
+        {section === "configuracoes" ? <AdminOperationalPanel view="settings" /> : null}
+      </div>
+    </div>
+  );
+}
+
 function StoreGate() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { loading, error, storeOpen } = useOperationalAvailability();
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
 
-  if (isAdmin) return <><AdminOperationalPanel /><Outlet /></>;
+  if (isAdmin) return <AdminWorkspace />;
   if (loading) return <main className="min-h-screen bg-background px-5 py-12 text-center text-sm text-muted-foreground">Carregando…</main>;
   if (error || !storeOpen) return <ClosedStore />;
   return <Outlet />;
